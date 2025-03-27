@@ -35,19 +35,22 @@
       color: #eee;
     }
 
-    /* Navigation container (right side) */
-    nav {
-      display: flex;
-      align-items: center;
-      gap: 2rem;
-    }
+   /* Navigation container (centered layout) */
+nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  font-size: 1.1rem; /* Increased text size */
+}
 
-    /* Basic link styling */
-    nav a {
-      text-decoration: none;
-      color: #eee;
-      font-weight: bold;
-    }
+/* Basic link styling */
+nav a {
+  text-decoration: none;
+  color: #eee;
+  font-weight: bold;
+  padding: 0.5rem 0;
+}
 
     /* Dropdown container */
     .dropdown {
@@ -69,13 +72,14 @@
 
     /* Each dropdown item link */
     .dropdown-content a {
-      display: block;
-      color: #fff;
-      padding: 0.75rem 1rem;
-      text-decoration: none;
-      text-align: left;
-      border-bottom: 1px solid #333;
-    }
+  display: block;
+  color: #fff;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  text-align: left;
+  border-bottom: 1px solid #333;
+  font-size: 1.05rem; /* Slightly larger menu text */
+}
 
     .dropdown-content a:hover {
       background-color: #333;
@@ -150,14 +154,14 @@
   <main>
     <h1>Welcome to the Josh Dunbar Fanclub</h1>
     <p>
-      Welcome to the inner sanctum. This is a place of reverence for our the magnificent Josh Dunbar. <br/>
+      Welcome to the inner sanctum. This is a place of reverence for the magnificent Josh Dunbar. <br/>
       Use the menu to bear witness to the one and only Josh Dunbar and explore the sacred archives.
     </p>
   </main>
 
   <!-- Footer -->
   <footer>
-    &copy; <span id="year"></span> Josh Dunbar Fanclub. All rights reserved.
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. All rights reserved to Bean.
   </footer>
 
   <!-- Optional JavaScript to auto-update footer year -->
