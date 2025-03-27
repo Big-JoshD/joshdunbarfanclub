@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rocket League Rank Tracker</title>
+  <style>
+    /* Same theme styling */
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #141e30, #243b55);
+      color: #eee;
+      text-align: center;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background-color: rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1.5rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.6);
+    }
+    .brand {
+      font-size: 1.2rem;
+      font-weight: bold;
+      text-decoration: none;
+      color: #eee;
+    }
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      font-size: 1.1rem;
+    }
+    nav a {
+      text-decoration: none;
+      color: #eee;
+      font-weight: bold;
+      padding: 0.5rem 0;
+    }
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      background-color: #222;
+      min-width: 180px;
+      box-shadow: 0px 8px 16px rgba(0,0,0,0.3);
+      border-radius: 4px;
+      z-index: 999;
+    }
+    .dropdown-content a {
+      display: block;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      text-decoration: none;
+      text-align: left;
+      border-bottom: 1px solid #333;
+      font-size: 1.05rem;
+    }
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    main h1 {
+      font-size: 3rem;
+      margin: 1rem 0;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+    }
+    main p {
+      font-size: 1.2rem;
+      max-width: 600px;
+      line-height: 1.6;
+      margin: 0 auto;
+    }
+    footer {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.5rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="brand">Josh Dunbar Fanclub</a>
+    <nav>
+      <a href="index.html">Home</a>
+      <div class="dropdown">
+        <a href="#">Menu ⬇</a>
+        <div class="dropdown-content">
+          <a href="livecam.html">Live 24/7 Camera Feed 📸</a>
+          <a href="beancam.html">Bean Cam</a>
+          <a href="lore.html">Josh Dunbar Lore</a>
+          <a href="ranktracker.html">Rocket League Rank Tracker</a>
+          <a href="fansubmissions.html">Fan Submissions</a>
+          <a href="spicy.html">Spicy Photos 🥵🔥</a>
+          <a href="bicepsize.html">Bicep Size Over Time</a>
+          <a href="poetry.html">Josh Dunbar Poetry</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Rocket League Rank Tracker</h1>
+    <p>
+      Keep tabs on Josh's latest Rocket League conquests.<br/>
+      From Bronze to Grand Champion, the saga unfolds right here.
+    </p>
+  </main>
+
+  <footer>
+    &copy; <span id="year-ranktracker"></span> Josh Dunbar Fanclub. All rights reserved.
+  </footer>
+
+  <script>
+    document.getElementById('year-ranktracker').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
