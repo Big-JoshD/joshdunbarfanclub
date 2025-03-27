@@ -5,85 +5,164 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Josh Dunbar Fanclub</title>
   <style>
+    /* Body reset & background */
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #111;
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #141e30, #243b55);
       color: #eee;
       text-align: center;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
-    nav {
-      background: #222;
-      padding: 1rem;
+    /* Top Navigation Bar */
+    header {
+      background-color: rgba(0, 0, 0, 0.3);
       display: flex;
-      justify-content: center;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1.5rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.6);
+    }
+
+    /* "Brand" link (left side) */
+    .brand {
+      font-size: 1.2rem;
+      font-weight: bold;
+      text-decoration: none;
+      color: #eee;
+    }
+
+    /* Navigation container (right side) */
+    nav {
+      display: flex;
+      align-items: center;
       gap: 2rem;
     }
 
+    /* Basic link styling */
     nav a {
-      color: #eee;
       text-decoration: none;
+      color: #eee;
       font-weight: bold;
     }
 
+    /* Dropdown container */
     .dropdown {
       position: relative;
       display: inline-block;
     }
 
+    /* The dropdown content (hidden by default) */
     .dropdown-content {
       display: none;
       position: absolute;
-      background-color: #333;
-      min-width: 160px;
+      right: 0; /* so it aligns to the right under the dropdown link */
+      background-color: #222;
+      min-width: 180px;
       box-shadow: 0px 8px 16px rgba(0,0,0,0.3);
-      z-index: 1;
+      border-radius: 4px;
+      z-index: 999;
     }
 
+    /* Each dropdown item link */
     .dropdown-content a {
-      color: #fff;
-      padding: 12px 16px;
-      text-decoration: none;
       display: block;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      text-decoration: none;
+      text-align: left;
+      border-bottom: 1px solid #333;
     }
 
     .dropdown-content a:hover {
-      background-color: #444;
+      background-color: #333;
     }
 
+    /* Show the dropdown content on hover */
     .dropdown:hover .dropdown-content {
       display: block;
     }
 
-    h1 {
-      margin-top: 3rem;
-      font-size: 2.5rem;
+    /* Page heading area */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
     }
 
-    p {
-      max-width: 600px;
-      margin: 1rem auto;
+    main h1 {
+      font-size: 3rem;
+      margin: 1rem 0;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+    }
+
+    main p {
       font-size: 1.2rem;
+      max-width: 600px;
+      line-height: 1.6;
+      margin: 0 auto;
+    }
+
+    /* Footer just for completeness */
+    footer {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.5rem;
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="about.html">About</a>
-    <div class="dropdown">
-      <a href="#">Fan Stuff ⬇</a>
-      <div class="dropdown-content">
-        <a href="gallery.html">Gallery</a>
-        <a href="music.html">Music</a>
-        <a href="submit.html">Submit</a>
-      </div>
-    </div>
-    <a href="contact.html">Contact</a>
-  </nav>
 
-  <h1>Welcome to the Josh Dunbar Fanclub</h1>
-  <p>You’re officially in the coolest corner of the internet. Stick around — we’re just getting started.</p>
+  <!-- Header / Navbar -->
+  <header>
+    <a href="index.html" class="brand">Josh Dunbar Fanclub</a>
+    <nav>
+      <!-- Could keep a direct Home link if you want -->
+      <a href="index.html">Home</a>
+
+      <!-- Dropdown Menu for everything else -->
+      <div class="dropdown">
+        <a href="#">Menu ⬇</a>
+        <div class="dropdown-content">
+          <!-- Each link points to a separate .html page you’ll create -->
+          <a href="livecam.html">Live 24/7 Camera Feed 📸</a>
+          <a href="beancam.html">Bean Cam</a>
+          <a href="lore.html">Lore Section</a>
+          <a href="ranktracker.html">Rocket League Rank Tracker</a>
+          <a href="alliesenemies.html">Allies and Enemies</a>
+          <a href="fansubmissions.html">Fan Submissions</a>
+          <a href="fanfics.html">Fanfics</a>
+          <a href="spicy.html">Spicy Photos 🥵🔥</a>
+          <a href="bicepsize.html">Bicep Size Over Time</a>
+          <a href="poetry.html">Josh Dunbar Poetry</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main content area -->
+  <main>
+    <h1>Welcome to the Josh Dunbar Fanclub</h1>
+    <p>
+      You’ve arrived at the coolest corner of the internet.<br/>
+      Check out the menu to explore live cams, lore, rank tracking, and more!
+    </p>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. All rights reserved.
+  </footer>
+
+  <!-- Optional JavaScript to auto-update footer year -->
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
