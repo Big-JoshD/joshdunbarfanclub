@@ -109,6 +109,30 @@
       padding: 0.5rem;
       font-size: 0.9rem;
     }
+    .power-meter.overload {
+  box-shadow: 0 0 20px red, 0 0 40px red;
+}
+
+.power-fill.overload {
+  background: linear-gradient(90deg, #ff0000, #ff4444);
+  animation: pulse 0.4s infinite;
+}
+
+.power-output.overload {
+  color: red;
+  font-weight: bold;
+  animation: flicker 0.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.1; }
+}
   </style>
 </head>
 <body>
@@ -134,15 +158,16 @@
   </header>
 
   <main>
-    <h1>Bean Cam: Outer Perimeter Watch</h1>
-    <p>
-      Surveillance has been delegated to the trusted raccoon unit. <br/>
-    </p>
-
-    <iframe src="https://www.youtube.com/embed/4hVr2j3k8mA" width="720" height="405" allowfullscreen></iframe>
-    <p style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.7;">
-      Live feed provided by the Raccoon Reconnaissance Division.
-    </p>
+  <h1 id="title">Bean Power Meter</h1>
+  <div class="power-meter" id="meter">
+    <div class="power-fill" id="fill"></div>
+  </div>
+  <div class="power-output" id="output">Power Level: 9,876,543</div>
+  <div class="lightning">⚡</div>
+  <p id="desc" style="max-width: 500px; margin-top: 2rem;">
+    Monitoring core energy emissions from Agent Bean.<br/>
+    Spikes in power may indicate barking, tail thumps, or prophecies.
+  </p>
   </main>
 
   <footer>
@@ -150,7 +175,38 @@
   </footer>
 
   <script>
-    document.getElementById('year-bean').textContent = new Date().getFullYear();
+    <script>
+  document.getElementById('year-bean').textContent = new Date().getFullYear();
+
+  const fill = document.getElementById('fill');
+  const output = document.getElementById('output');
+  const meter = document.getElementById('meter');
+  const title = document.getElementById('title');
+  const desc = document.getElementById('desc');
+
+  function randomPower() {
+    const power = Math.floor(Math.random() * 2000000 + 9000000); // 9M–11M
+    const percent = Math.min((power - 9000000) / 2000000 * 100, 100);
+    fill.style.width = percent + "%";
+
+    const isOverload = power > 9999999;
+
+    meter.classList.toggle("overload", isOverload);
+    fill.classList.toggle("overload", isOverload);
+    output.classList.toggle("overload", isOverload);
+
+    if (isOverload) {
+      output.textContent = "!! OVERLOAD !!";
+      title.textContent = "BEAN POWER BREACH";
+      desc.textContent = "Containment protocols initiated. Please stand by.";
+    } else {
+      output.textContent = "Power Level: " + power.toLocaleString();
+      title.textContent = "Bean Power Meter";
+      desc.textContent = "Monitoring core energy emissions from Agent Bean.\nSpikes in power may indicate barking, tail thumps, or prophecies.";
+    }
+  }
+
+  setInterval(randomPower, 1800);
   </script>
 
 </body>
