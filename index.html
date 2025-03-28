@@ -8,42 +8,47 @@
 </head>
 <body>
 
-  <!-- Main content area -->
+  <!-- Hero Section -->
+  <section class="hero">
+    <h1>Josh Dunbar Fanclub</h1>
+    <p>A Place of Reverence</p>
+    <div class="divider"></div>
+  </section>
+
   <main>
-    <h1>Welcome to the Josh Dunbar Fanclub</h1>
-    <p>
+    <p style="max-width: 600px; font-size: 1.2rem; line-height: 1.6;">
       Welcome to the inner sanctum. This is a place of reverence for the magnificent Josh Dunbar. <br/>
       Use the menu to bear witness to the one and only Josh Dunbar and explore the sacred archives.
     </p>
     <section style="margin-top: 3rem;">
-  <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Submit Your Requests</h2>
-  <p style="font-size: 1.1rem;">
-    Questions, fanmail, and lore theories may be submitted to<br/>
-    <a href="mailto:josh@joshdunbarfanclub.com" style="color: #9cf; text-decoration: underline;">
-      josh@joshdunbarfanclub.com
-    </a>
-  </p>
-</section>
+      <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Submit Your Requests</h2>
+      <p style="font-size: 1.1rem;">
+        Questions, fanmail, and lore theories may be submitted to<br/>
+        <a href="mailto:josh@joshdunbarfanclub.com" style="color: #555; text-decoration: underline;">
+          josh@joshdunbarfanclub.com
+        </a>
+      </p>
+    </section>
   </main>
 
-  <!-- Footer -->
-  <footer>
-    &copy; <span id="year"></span> Josh Dunbar Fanclub. All rights reserved to Bean.
-  </footer>
+  <!-- Inject navbar -->
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
+  </script>
 
-  <!-- Optional JavaScript to auto-update footer year -->
+  <!-- Custom footer for homepage -->
+  <footer>
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. Reverence isn't optional.
+  </footer>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
-  <script>
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(data => {
-      const nav = document.createElement("div");
-      nav.innerHTML = data;
-      document.body.insertBefore(nav, document.body.firstChild);
-    });
-</script>
 
 </body>
 </html>
