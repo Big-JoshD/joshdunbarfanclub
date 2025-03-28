@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fanfics</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .coming-soon {
+      max-width: 600px;
+      margin: 6rem auto;
+      text-align: center;
+      padding: 2rem;
+      background-color: #fff;
+      border-left: 4px solid #000;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .coming-soon h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    .coming-soon p {
+      font-size: 1.1rem;
+      color: #444;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="coming-soon">
+      <h1>Coming Soon</h1>
+      <p>Josh's most devoted scribes are currently curating tales worthy of his legacy.<br>
+      Check back soon for the canon of Dunbarian fanfiction.</p>
+    </section>
+  </main>
+
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
+  </script>
+
+  <footer>
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. All works must be canonically sanctioned.
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
