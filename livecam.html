@@ -116,25 +116,6 @@
 </head>
 <body>
 
-  <header>
-    <a href="index.html" class="brand">Josh Dunbar Fanclub</a>
-    <nav>
-      <a href="index.html">Home</a>
-      <div class="dropdown">
-        <a href="#">Menu ⬇</a>
-        <div class="dropdown-content">
-          <a href="livecam.html">Live 24/7 Camera Feed 📸</a>
-          <a href="beancam.html">Bean Tracker</a>
-          <a href="lore.html">Josh Dunbar Lore</a>
-          <a href="ranktracker.html">Rocket League Rank Tracker</a>
-          <a href="fansubmissions.html">Fan Submissions</a>
-          <a href="spicy.html">Spicy Photos 🥵🔥</a>
-          <a href="bicepsize.html">Bicep Size Over Time</a>
-          <a href="poetry.html">Josh Dunbar Poetry</a>
-        </div>
-      </div>
-    </nav>
-  </header>
 
   <main>
     <div class="emoji flashing">⚠️⚠️⚠️</div>
@@ -153,6 +134,16 @@
   <script>
     document.getElementById('year-lock').textContent = new Date().getFullYear();
   </script>
+  <script>
+  fetch("navbar.html")
+    .then(res => res.text())
+    .then(data => {
+      const nav = document.createElement("div");
+      nav.innerHTML = data;
+      document.body.insertBefore(nav, document.body.firstChild);
+    });
+</script>
+
 
 </body>
 </html>
