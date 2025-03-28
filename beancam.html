@@ -5,36 +5,105 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bean Tracker</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .tracker-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+    }
+
+    .bean-image {
+      max-width: 100%;
+      width: 400px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+
+    .power-meter {
+      position: relative;
+      width: 400px;
+      height: 30px;
+      background-color: #333;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 0 0 8px rgba(255, 0, 0, 0.2);
+    }
+
+    .power-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(to right, #0ff, #f0f);
+      transition: width 0.3s ease-in-out;
+    }
+
+    .overload-text {
+      color: red;
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 1rem;
+      animation: flashText 0.5s infinite alternate;
+      display: none;
+    }
+
+    @keyframes flashText {
+      from { opacity: 0.2; }
+      to { opacity: 1; }
+    }
+  </style>
 </head>
 <body>
-
   <main>
-    <h1>Bean Tracker</h1>
-    <p style="max-width: 500px; font-size: 1.2rem;">
-      Real-time monitoring of the one known only as Bean.<br/>
-      All fluctuations in presence, power, and aura are recorded here.
-    </p>
-    <p style="margin-top: 2rem; font-style: italic; opacity: 0.8;">
-      (No suspicious activity detected... yet.)
-    </p>
+    <section class="content-box tracker-container">
+      <h1 class="section-title">Bean Tracker</h1>
+      <p>Real-time power fluctuations detected. Monitoring...</p>
+
+      <img src="img/lightningbean.gif" alt="Lightning Bean" class="bean-image" />
+
+      <div class="power-meter">
+        <div class="power-fill" id="powerBar"></div>
+      </div>
+
+      <div class="overload-text" id="overload">⚠️ OVERLOAD DETECTED ⚡</div>
+    </section>
   </main>
 
-  <footer>
-    &copy; <span id="year-bean"></span> Josh Dunbar Fanclub. Bean is watching.
-  </footer>
+  <script>
+    const bar = document.getElementById('powerBar');
+    const overload = document.getElementById('overload');
+
+    function pulsePower() {
+      const now = Date.now();
+      const timeInCycle = now % 3500; // 3.5s loop
+
+      if (timeInCycle < 3000) {
+        bar.style.width = '70%';
+        overload.style.display = 'none';
+      } else {
+        bar.style.width = '100%';
+        overload.style.display = 'block';
+      }
+    }
+
+    setInterval(pulsePower, 200);
+  </script>
 
   <script>
-    document.getElementById('year-bean').textContent = new Date().getFullYear();
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
   </script>
+
+  <footer>
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. Bean’s voltage is immeasurable.
+  </footer>
   <script>
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(data => {
-      const nav = document.createElement("div");
-      nav.innerHTML = data;
-      document.body.insertBefore(nav, document.body.firstChild);
-    });
-</script>
-  
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
