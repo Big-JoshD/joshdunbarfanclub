@@ -21,20 +21,6 @@ main {
   padding: 3rem 2rem;
 }
 
-h1 {
-  font-size: 2.8rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  opacity: 0;
-  animation: fadeIn 1.5s ease-out forwards;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
 footer {
   background: #111;
   color: #f4f4f4;
@@ -126,4 +112,50 @@ nav a:hover {
   max-width: 600px;
   text-align: left;
   line-height: 1.6;
-}  
+}
+
+/* ==== Hero Section Styling ==== */
+.hero {
+  padding: 6rem 2rem 4rem;
+  animation: fadeIn 1.5s ease-out both;
+}
+
+.hero h1 {
+  font-size: 3.2rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 0;
+  animation: fadeIn 1.5s ease-out both;
+}
+
+.hero p {
+  font-size: 1.25rem;
+  margin-top: 0.75rem;
+  letter-spacing: 1px;
+  font-style: italic;
+  opacity: 0.8;
+  animation: fadeIn 2.2s ease-out both;
+}
+
+.divider {
+  width: 40px;
+  height: 2px;
+  background-color: #ccc;
+  margin: 1.5rem auto 0;
+  animation: fadeIn 2.5s ease-out both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+h1 {
+  font-size: 2.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  opacity: 0;
+  animation: fadeIn 1.5s ease-out forwards;
+}
