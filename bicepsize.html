@@ -72,22 +72,22 @@
       {
         id: 'chart1',
         labels: ['Josh Bicep (Age 12)', 'Softball'],
-        data: [12, 12],
+        data: [12.5, 12],
       },
       {
         id: 'chart2',
         labels: ['Josh Bicep (Age 16)', 'Bowling Ball'],
-        data: [21, 21],
+        data: [22, 21.5],
       },
       {
         id: 'chart3',
         labels: ['Josh Bicep (Age 21)', 'Vegas Sphere'],
-        data: [12000, 12000], // diameter in mm-ish
+        data: [516, 516], // diameter in mm-ish
       },
       {
         id: 'chart4',
         labels: ['Josh (Projected)', 'Orbital Sphere'],
-        data: [Infinity, 13000],
+        data: [Infinity, 520],
       },
     ];
 
@@ -97,7 +97,7 @@
         data: {
           labels: cfg.labels,
           datasets: [{
-            label: 'Diameter (in mm)',
+            label: 'Circumference (in inches)',
             data: cfg.data,
             backgroundColor: ['#111', '#aaa'],
           }]
