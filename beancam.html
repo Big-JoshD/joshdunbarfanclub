@@ -51,6 +51,14 @@
       from { opacity: 0.2; }
       to { opacity: 1; }
     }
+
+    .power-value {
+      margin-top: 0.5rem;
+      font-size: 1.25rem;
+      font-family: monospace;
+      color: #0ff;
+      text-shadow: 0 0 5px #0ff;
+    }
   </style>
 </head>
 <body>
@@ -59,12 +67,13 @@
       <h1 class="section-title">Bean Tracker</h1>
       <p>Real-time power fluctuations detected. Monitoring...</p>
 
-      <img src="img/lightningbean.gif" alt="Lightning Bean" class="bean-image" />
+      <img src="img/lightningbean.png" alt="Lightning Bean" class="bean-image" />
 
       <div class="power-meter">
         <div class="power-fill" id="powerBar"></div>
       </div>
 
+      <div class="power-value" id="powerValue">Power: 0 kB</div>
       <div class="overload-text" id="overload">⚠️ OVERLOAD DETECTED ⚡</div>
     </section>
   </main>
@@ -72,20 +81,23 @@
   <script>
     const bar = document.getElementById("powerBar");
     const overload = document.getElementById("overload");
+    const valueText = document.getElementById("powerValue");
 
-    function syncWithGifCycle() {
-      bar.style.width = "70%";
-      overload.style.display = "none";
+    function fluctuatePower() {
+      const percent = Math.floor(Math.random() * 100);
+      bar.style.width = percent + "%";
 
-      setTimeout(() => {
-        bar.style.width = "100%";
+      const value = (Math.random() * 1e9 + 1e9).toFixed(0); // 1B–2B range
+      valueText.textContent = `Power: ${value} kB`;
+
+      if (percent > 89) {
         overload.style.display = "block";
-      }, 3000); // after 3 seconds
-
-      setTimeout(syncWithGifCycle, 3500); // full cycle: 3s normal + 0.5s overload
+      } else {
+        overload.style.display = "none";
+      }
     }
 
-    syncWithGifCycle();
+    setInterval(fluctuatePower, 1200);
   </script>
 
   <script>
