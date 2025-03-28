@@ -2,122 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bicep Size Over Time</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAQs</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .chart-section {
-      padding: 4rem 2rem;
+    .faq-container {
       max-width: 800px;
-      margin: auto;
-      text-align: center;
+      margin: 3rem auto;
+      padding: 2rem;
+      background: #fff;
+      border-left: 4px solid #111;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
 
-    .chart-section h2 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      font-style: italic;
-      color: #333;
+    .faq-container h2 {
+      font-size: 1.6rem;
+      margin-bottom: 1.5rem;
+      color: #222;
     }
 
-    canvas {
-      max-width: 100%;
+    .faq-item {
+      margin-bottom: 2rem;
     }
 
-    .reverent-text {
-      font-style: italic;
-      font-size: 1.05rem;
-      color: #555;
-      margin-top: 1rem;
+    .faq-item h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      color: #111;
+    }
+
+    .faq-item p {
+      font-size: 1rem;
+      color: #444;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
-  <main>
+  <main style="position: relative;">
+    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('img/bodybuilders.jpg'); background-size: cover; background-position: center; opacity: 0.08; z-index: -1;"></div>
     <section class="content-box">
-      <h1 class="section-title">Bicep Size Over Time</h1>
-      <p class="reverent-text">
-        A visual record of growth and reverence. The comparisons are imperfect—yet they persist.
-      </p>
+      <h1 class="section-title">Frequently Asked Questions</h1>
+      <p class="reverent-text">Clarifications for the devoted. The rest need not ask.</p>
     </section>
 
-    <section class="chart-section">
-      <h2>Age 12: The Softball Years</h2>
-      <canvas id="chart1"></canvas>
-      <p class="reverent-text">They were built, solid, and already matched the girth of a regulation softball.</p>
-    </section>
+    <section class="faq-container">
+      <h2>General Inquiries</h2>
 
-    <section class="chart-section">
-      <h2>Age 16: Bowling into Legend</h2>
-      <canvas id="chart2"></canvas>
-      <p class="reverent-text">Josh’s arms surpassed the average bowling ball.</p>
-    </section>
+      <div class="faq-item">
+        <h3>Is Josh Dunbar real?</h3>
+        <p>Define “real.” Some say he’s a man. Others, a manifestation of aesthetic perfection. Both are correct.</p>
+      </div>
 
-    <section class="chart-section">
-      <h2>Age 21: Enter the Vegas Sphere</h2>
-      <canvas id="chart3"></canvas>
-      <p class="reverent-text">Comparable in influence, if not literal size. The MSG Sphere shimmers. Josh’s arms glow brighter.</p>
-    </section>
+      <div class="faq-item">
+        <h3>Has anyone ever seen Josh blink?</h3>
+        <p>Not yet. The current count is 0 blinks observed in over 12,000 hours of footage.</p>
+      </div>
 
-    <section class="chart-section">
-      <h2>Age Unknown: Theoretical Bicep Singularity</h2>
-      <canvas id="chart4"></canvas>
-      <p class="reverent-text">Current projections suggest a convergence with celestial spheres. Debate is discouraged.</p>
+      <div class="faq-item">
+        <h3>How can I become a member of the Inner Circle?</h3>
+        <p>You will know when you are ready. Until then, remain silent and lift with intention.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Where does the power come from?</h3>
+        <p>Not where. When. All energy is borrowed from a future Josh.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Can I request a photo of Josh smiling?</h3>
+        <p>No such file exists. When Josh smiles, cameras respectfully turn away.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Is Bean real?</h3>
+        <p>Yes. And he knows you asked.</p>
+      </div>
     </section>
   </main>
-
-  <script>
-    const chartConfigs = [
-      {
-        id: 'chart1',
-        labels: ['Josh Bicep (Age 12)', 'Softball'],
-        data: [12.5, 12],
-      },
-      {
-        id: 'chart2',
-        labels: ['Josh Bicep (Age 16)', 'Bowling Ball'],
-        data: [22, 21.5],
-      },
-      {
-        id: 'chart3',
-        labels: ['Josh Bicep (Age 21)', 'Vegas Sphere'],
-        data: [516, 516], // diameter in mm-ish
-      },
-      {
-        id: 'chart4',
-        labels: ['Josh (Projected)', 'Orbital Sphere'],
-        data: [Infinity, 520],
-      },
-    ];
-
-    chartConfigs.forEach(cfg => {
-      new Chart(document.getElementById(cfg.id), {
-        type: 'bar',
-        data: {
-          labels: cfg.labels,
-          datasets: [{
-            label: 'Circumference (in inches)',
-            data: cfg.data,
-            backgroundColor: ['#111', '#aaa'],
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          },
-          plugins: {
-            legend: {
-              display: false
-            }
-          }
-        }
-      });
-    });
-  </script>
 
   <script>
     fetch("navbar.html")
@@ -130,7 +92,7 @@
   </script>
 
   <footer>
-    &copy; <span id="year"></span> Josh Dunbar Fanclub. These are not approximations. They are revelations.
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. You have been witnessed.
   </footer>
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
