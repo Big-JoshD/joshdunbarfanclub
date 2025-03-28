@@ -6,56 +6,58 @@
   <title>Josh Dunbar Poetry</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-  <script>
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(data => {
-      const nav = document.createElement("div");
-      nav.innerHTML = data;
-      document.body.insertBefore(nav, document.body.firstChild);
-    });
-</script>
 
 <body>
 
-  <h1>Selected Works in Honor of Josh Dunbar</h1>
+  <main>
+    <h1>Selected Works in Honor of Josh Dunbar</h1>
 
-  <div class="poem">
-    <h2>1. The Bicep That Casts a Shadow</h2>
-    <p>
-      Upon the mountains that are his arms,  
-      the sun dares not shine.  
-      For what is daylight, truly,  
-      next to a bicep that divine?
-    </p>
-  </div>
+    <div class="poem">
+      <h2>1. The Bicep That Casts a Shadow</h2>
+      <p>
+        Upon the mountains that are his arms,<br>
+        the sun dares not shine.<br>
+        For what is daylight, truly,<br>
+        next to a bicep that divine?
+      </p>
+    </div>
 
-  <div class="poem">
-    <h2>2. Bean Tracker (A Meditation)</h2>
-    <p>
-      A silent feed.  
-      A noble hound.  
-      The mystery grows  
-      without a sound.  
-      
-      Who watches whom?  
-      We dare not say.  
-      For Bean sees all.  
-      And looks away.
-    </p>
-  </div>
+    <div class="poem">
+      <h2>2. Bean Tracker (A Meditation)</h2>
+      <p>
+        A silent feed.<br>
+        A noble hound.<br>
+        The mystery grows<br>
+        without a sound.<br><br>
+        Who watches whom?<br>
+        We dare not say.<br>
+        For Bean sees all.<br>
+        And looks away.
+      </p>
+    </div>
 
-  <div class="poem">
-    <h2>3. Rocket League, Rocket Life</h2>
-    <p>
-      Platinum dreams in neon light,  
-      air dribbles at 3 a.m.  
-      He doesn’t queue —  
-      the servers wait for him.
-    </p>
-  </div>
+    <div class="poem">
+      <h2>3. Rocket League, Rocket Life</h2>
+      <p>
+        Platinum dreams in neon light,<br>
+        air dribbles at 3 a.m.<br>
+        He doesn’t queue —<br>
+        the servers wait for him.
+      </p>
+    </div>
 
-  <a href="index.html" class="back">⬅ Return to Sanctum</a>
+    <a href="index.html" class="back">⬅ Return to Sanctum</a>
+  </main>
+
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
+  </script>
 
 </body>
 </html>
