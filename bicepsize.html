@@ -38,32 +38,32 @@
     <section class="content-box">
       <h1 class="section-title">Bicep Size Over Time</h1>
       <p class="reverent-text">
-        A slow ascension into unmatched physical divinity. Witness the growth.
+        A visual record of growth and reverence. The comparisons are imperfect—yet they persist.
       </p>
     </section>
 
     <section class="chart-section">
-      <h2>Age 16: The Dawn of Strength</h2>
+      <h2>Age 12: The Softball Years</h2>
       <canvas id="chart1"></canvas>
-      <p class="reverent-text">Comparable to a large egg — the sacred beginnings.</p>
+      <p class="reverent-text">They were round, firm, and already matched the girth of a regulation softball.</p>
     </section>
 
     <section class="chart-section">
-      <h2>Age 19: Beyond Bread</h2>
+      <h2>Age 16: Bowling into Legend</h2>
       <canvas id="chart2"></canvas>
-      <p class="reverent-text">Surpassing baguettes, ascending beyond yeast-born benchmarks.</p>
+      <p class="reverent-text">Josh’s arms surpassed the average bowling ball. Grip strength? Unmeasured.</p>
     </section>
 
     <section class="chart-section">
-      <h2>Age 23: Moai Comparisons Begin</h2>
+      <h2>Age 21: Enter the Vegas Sphere</h2>
       <canvas id="chart3"></canvas>
-      <p class="reverent-text">Now his biceps are compared only to monuments. The Earth takes note.</p>
+      <p class="reverent-text">Comparable in influence, if not literal size. The MSG Sphere shimmers. Josh’s arms shimmer louder.</p>
     </section>
 
     <section class="chart-section">
-      <h2>Current Day: Orbital Influence</h2>
+      <h2>Age Unknown: Theoretical Bicep Singularity</h2>
       <canvas id="chart4"></canvas>
-      <p class="reverent-text">Unconfirmed reports suggest Bean tracks them from space.</p>
+      <p class="reverent-text">Current projections suggest a convergence with celestial spheres. Debate is discouraged.</p>
     </section>
   </main>
 
@@ -71,23 +71,23 @@
     const chartConfigs = [
       {
         id: 'chart1',
-        labels: ['Josh Bicep', 'Large Egg'],
-        data: [12, 6],
+        labels: ['Josh Bicep (Age 12)', 'Softball'],
+        data: [12, 12],
       },
       {
         id: 'chart2',
-        labels: ['Josh Bicep', 'Baguette'],
-        data: [16, 14],
+        labels: ['Josh Bicep (Age 16)', 'Bowling Ball'],
+        data: [21, 21],
       },
       {
         id: 'chart3',
-        labels: ['Josh Bicep', 'Moai Head'],
-        data: [32, 30],
+        labels: ['Josh Bicep (Age 21)', 'Vegas Sphere'],
+        data: [12000, 12000], // diameter in mm-ish
       },
       {
         id: 'chart4',
-        labels: ['Josh Bicep', 'Orbital Stability'],
-        data: [Infinity, 100],
+        labels: ['Josh (Projected)', 'Orbital Sphere'],
+        data: [Infinity, 13000],
       },
     ];
 
@@ -97,7 +97,7 @@
         data: {
           labels: cfg.labels,
           datasets: [{
-            label: 'Diameter (in inches)',
+            label: 'Diameter (in mm)',
             data: cfg.data,
             backgroundColor: ['#111', '#aaa'],
           }]
@@ -130,7 +130,7 @@
   </script>
 
   <footer>
-    &copy; <span id="year"></span> Josh Dunbar Fanclub. The gains are eternal.
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. These are not approximations. They are revelations.
   </footer>
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
