@@ -70,23 +70,22 @@
   </main>
 
   <script>
-    const bar = document.getElementById('powerBar');
-    const overload = document.getElementById('overload');
+    const bar = document.getElementById("powerBar");
+    const overload = document.getElementById("overload");
 
-    function pulsePower() {
-      const now = Date.now();
-      const timeInCycle = now % 3500; // 3.5s loop
+    function syncWithGifCycle() {
+      bar.style.width = "70%";
+      overload.style.display = "none";
 
-      if (timeInCycle < 3000) {
-        bar.style.width = '70%';
-        overload.style.display = 'none';
-      } else {
-        bar.style.width = '100%';
-        overload.style.display = 'block';
-      }
+      setTimeout(() => {
+        bar.style.width = "100%";
+        overload.style.display = "block";
+      }, 3000); // after 3 seconds
+
+      setTimeout(syncWithGifCycle, 3500); // full cycle: 3s normal + 0.5s overload
     }
 
-    setInterval(pulsePower, 200);
+    syncWithGifCycle();
   </script>
 
   <script>
