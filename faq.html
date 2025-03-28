@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAQs</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .faq-container {
+      max-width: 800px;
+      margin: 3rem auto;
+      padding: 2rem;
+      background: #fff;
+      border-left: 4px solid #111;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    .faq-container h2 {
+      font-size: 1.6rem;
+      margin-bottom: 1.5rem;
+      color: #222;
+    }
+
+    .faq-item {
+      margin-bottom: 2rem;
+    }
+
+    .faq-item h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      color: #111;
+    }
+
+    .faq-item p {
+      font-size: 1rem;
+      color: #444;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="content-box">
+      <h1 class="section-title">Frequently Asked Questions</h1>
+      <p class="reverent-text">Clarifications for the devoted. The rest need not ask.</p>
+    </section>
+
+    <section class="faq-container">
+      <h2>General Inquiries</h2>
+
+      <div class="faq-item">
+        <h3>Is Josh Dunbar real?</h3>
+        <p>Define “real.” Some say he’s a man. Others, a manifestation of aesthetic perfection. Both are correct.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Has anyone ever seen Josh blink?</h3>
+        <p>Not yet. The current count is 0 blinks observed in over 12,000 hours of footage.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>How can I become a member of the Inner Circle?</h3>
+        <p>You will know when you are ready. Until then, remain silent and lift with intention.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Where does the power come from?</h3>
+        <p>Do not ask questions you are not prepared to have answered.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Can I request a photo of Josh smiling?</h3>
+        <p>No such file exists. When Josh smiles, cameras respectfully turn away.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Is Bean real?</h3>
+        <p>Yes. And he knows you asked.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
+  </script>
+
+  <footer>
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. You have been witnessed.
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
