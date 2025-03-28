@@ -2,36 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Josh Dunbar Lore</title>
- <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .lore-entry {
+      max-width: 700px;
+      margin: 3rem auto;
+      text-align: left;
+      background: #fff;
+      padding: 2rem;
+      border-left: 4px solid #222;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .lore-entry h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #222;
+    }
+    .lore-entry p {
+      font-size: 1.05rem;
+      color: #444;
+      line-height: 1.7;
+      font-style: italic;
+    }
+  </style>
 </head>
 <body>
-
   <main>
-    <h1>Josh Dunbar Lore</h1>
-    <p>
-      Dive into the legendary chronicles of Josh Dunbar.<br/>
-      Tales of triumph, obscure references, and monumental biceps abound.
-    </p>
+    <section class="content-box">
+      <h1 class="section-title">Josh Dunbar Lore</h1>
+      <p style="font-style: italic; color: #555;">Ancient tales passed down from lifter to lifter. Their truth? Unverifiable. Their power? Undeniable.</p>
+    </section>
+
+    <div class="lore-entry">
+      <h2>The Benchpress Prophecy</h2>
+      <p>
+        It is said that when Josh Dunbar lifted the combined weight of 77 Beans, the earth’s rotation paused for 3.4 seconds.
+        Scientists reported nothing. But the true believers know.
+      </p>
+    </div>
+
+    <div class="lore-entry">
+      <h2>The Time He Fought a Mirror</h2>
+      <p>
+        Legend tells of the day Josh caught his own reflection flexing out of turn. The ensuing standoff lasted seven days,
+        ending only when the mirror cracked and whispered, “You win.”
+      </p>
+    </div>
+
+    <div class="lore-entry">
+      <h2>The Dumbbell That Cried</h2>
+      <p>
+        Witnesses claim Josh once lifted a 150-pound dumbbell with such gentleness, it wept chrome tears and asked to be held again.
+        The dumbbell has since retired and resides in a museum.
+      </p>
+    </div>
+
+    <div class="lore-entry">
+      <h2>The Whispered Spotter</h2>
+      <p>
+        In the darkest corners of unlit gyms, some say they hear Josh’s voice—softly saying, "You’ve got this."
+        Believers always complete the rep.
+      </p>
+    </div>
   </main>
 
-  <footer>
-    &copy; <span id="year-lore"></span> Josh Dunbar Fanclub. All rights reserved.
-  </footer>
-
   <script>
-    document.getElementById('year-lore').textContent = new Date().getFullYear();
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
   </script>
-  <script>
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(data => {
-      const nav = document.createElement("div");
-      nav.innerHTML = data;
-      document.body.insertBefore(nav, document.body.firstChild);
-    });
-</script>
 
+  <footer>
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. These legends are sacred.
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
