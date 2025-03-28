@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    body {
+      background: url('img/bodybuilders.jpg') center center / cover no-repeat fixed;
+    }
+
     .chart-section {
       padding: 4rem 2rem;
       max-width: 800px;
@@ -18,25 +22,32 @@
       font-size: 1.5rem;
       margin-bottom: 1rem;
       font-style: italic;
-      color: #333;
+      color: #fff;
     }
 
     canvas {
       max-width: 100%;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
     }
 
     .reverent-text {
       font-style: italic;
       font-size: 1.05rem;
-      color: #555;
+      color: #ddd;
       margin-top: 1rem;
+    }
+
+    .overlay {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      padding: 2rem;
     }
   </style>
 </head>
 <body>
-  <main style="position: relative;">
-    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('img/bodybuilders.jpg'); background-size: cover; background-position: center; opacity: 0.08; z-index: -1;"></div>
-
+  <main class="overlay">
     <section class="content-box">
       <h1 class="section-title">Bicep Size Over Time</h1>
       <p class="reverent-text">
@@ -45,21 +56,21 @@
     </section>
 
     <section class="chart-section">
-      <h2>Age 12: A Solid Start</h2>
+      <h2>Age 12: The Softball Years</h2>
       <canvas id="chart1"></canvas>
-      <p class="reverent-text">They were round, built, and already matched the girth of a regulation softball.</p>
+      <p class="reverent-text">They were round, firm, and already matched the girth of a regulation softball.</p>
     </section>
 
     <section class="chart-section">
-      <h2>Age 16: Becoming a Legend</h2>
+      <h2>Age 16: Bowling into Legend</h2>
       <canvas id="chart2"></canvas>
-      <p class="reverent-text">Josh’s arms surpassed the average bowling ball.</p>
+      <p class="reverent-text">Josh’s arms surpassed the average bowling ball. Grip strength? Unmeasured.</p>
     </section>
 
     <section class="chart-section">
       <h2>Age 21: Enter the Vegas Sphere</h2>
       <canvas id="chart3"></canvas>
-      <p class="reverent-text">Comparable in influence, if not literal size. The MSG Sphere shines Josh’s arms shine brighter.</p>
+      <p class="reverent-text">Comparable in influence, if not literal size. The MSG Sphere shimmers. Josh’s arms shimmer louder.</p>
     </section>
 
     <section class="chart-section">
