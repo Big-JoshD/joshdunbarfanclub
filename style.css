@@ -19,6 +19,28 @@ main {
   align-items: center;
   justify-content: center;
   padding: 3rem 2rem;
+  gap: 4rem;
+}
+
+.welcome-text p {
+  max-width: 700px;
+  font-size: 1.15rem;
+  color: #444;
+  line-height: 1.8;
+  opacity: 0;
+  animation: fadeIn 1.6s ease-out 0.4s forwards;
+}
+
+.request-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.request-section p {
+  font-size: 1.05rem;
+  color: #333;
+  line-height: 1.6;
 }
 
 footer {
@@ -27,6 +49,7 @@ footer {
   padding: 1rem;
   font-size: 0.85rem;
   letter-spacing: 0.5px;
+  margin-top: 3rem;
 }
 
 /* ==== Header & Nav ==== */
