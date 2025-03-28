@@ -5,33 +5,135 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bicep Size Over Time</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .chart-section {
+      padding: 4rem 2rem;
+      max-width: 800px;
+      margin: auto;
+      text-align: center;
+    }
+
+    .chart-section h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      font-style: italic;
+      color: #333;
+    }
+
+    canvas {
+      max-width: 100%;
+    }
+
+    .reverent-text {
+      font-style: italic;
+      font-size: 1.05rem;
+      color: #555;
+      margin-top: 1rem;
+    }
+  </style>
 </head>
 <body>
-
   <main>
-    <h1>Bicep Size Over Time</h1>
-    <p>
-      A dedicated log of the unstoppable growth of Josh Dunbar’s biceps.<br/>
-      Chart these peaks of physical perfection and bow to the gains.
-    </p>
+    <section class="content-box">
+      <h1 class="section-title">Bicep Size Over Time</h1>
+      <p class="reverent-text">
+        A slow ascension into unmatched physical divinity. Witness the growth.
+      </p>
+    </section>
+
+    <section class="chart-section">
+      <h2>Age 16: The Dawn of Strength</h2>
+      <canvas id="chart1"></canvas>
+      <p class="reverent-text">Comparable to a large egg — the sacred beginnings.</p>
+    </section>
+
+    <section class="chart-section">
+      <h2>Age 19: Beyond Bread</h2>
+      <canvas id="chart2"></canvas>
+      <p class="reverent-text">Surpassing baguettes, ascending beyond yeast-born benchmarks.</p>
+    </section>
+
+    <section class="chart-section">
+      <h2>Age 23: Moai Comparisons Begin</h2>
+      <canvas id="chart3"></canvas>
+      <p class="reverent-text">Now his biceps are compared only to monuments. The Earth takes note.</p>
+    </section>
+
+    <section class="chart-section">
+      <h2>Current Day: Orbital Influence</h2>
+      <canvas id="chart4"></canvas>
+      <p class="reverent-text">Unconfirmed reports suggest Bean tracks them from space.</p>
+    </section>
   </main>
 
-  <footer>
-    &copy; <span id="year-biceps"></span> Josh Dunbar Fanclub. All rights reserved.
-  </footer>
+  <script>
+    const chartConfigs = [
+      {
+        id: 'chart1',
+        labels: ['Josh Bicep', 'Large Egg'],
+        data: [12, 6],
+      },
+      {
+        id: 'chart2',
+        labels: ['Josh Bicep', 'Baguette'],
+        data: [16, 14],
+      },
+      {
+        id: 'chart3',
+        labels: ['Josh Bicep', 'Moai Head'],
+        data: [32, 30],
+      },
+      {
+        id: 'chart4',
+        labels: ['Josh Bicep', 'Orbital Stability'],
+        data: [Infinity, 100],
+      },
+    ];
 
-  <script>
-    document.getElementById('year-biceps').textContent = new Date().getFullYear();
-  </script>
-  <script>
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(data => {
-      const nav = document.createElement("div");
-      nav.innerHTML = data;
-      document.body.insertBefore(nav, document.body.firstChild);
+    chartConfigs.forEach(cfg => {
+      new Chart(document.getElementById(cfg.id), {
+        type: 'bar',
+        data: {
+          labels: cfg.labels,
+          datasets: [{
+            label: 'Diameter (in inches)',
+            data: cfg.data,
+            backgroundColor: ['#111', '#aaa'],
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
     });
-</script>
+  </script>
 
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
+  </script>
+
+  <footer>
+    &copy; <span id="year"></span> Josh Dunbar Fanclub. The gains are eternal.
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
