@@ -152,6 +152,34 @@
       padding: 0.5rem;
       font-size: 0.9rem;
     }
+    .meter-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightning-img {
+  position: absolute;
+  height: 300px;
+  width: auto;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.lightning-img.left {
+  left: -60px;
+}
+
+.lightning-img.right {
+  right: -60px;
+}
+
+.meter-wrapper.overload .lightning-img {
+  opacity: 1;
+}
   </style>
 </head>
 <body>
@@ -160,9 +188,9 @@
     <a href="index.html" class="brand">Josh Dunbar Fanclub</a>
     <nav>
       <a href="index.html">Home</a>
-      <div class="dropdown">
+      < class="dropdown">
         <a href="#">Menu ⬇</a>
-        <div class="dropdown-content">
+        < class="dropdown-content">
           <a href="livecam.html">Live 24/7 Camera Feed 📸</a>
           <a href="beancam.html">Bean Tracker</a>
           <a href="lore.html">Josh Dunbar Lore</a>
@@ -171,15 +199,20 @@
           <a href="spicy.html">Spicy Photos 🥵🔥</a>
           <a href="bicepsize.html">Bicep Size Over Time</a>
           <a href="poetry.html">Josh Dunbar Poetry</a>
-        </div>
-      </div>
+        </>
+      </>
     </nav>
   </header>
 
   <main>
     <h1 id="title">Bean Power Meter</h1>
 
-    <div class="meter-container" id="meter"></div>
+<div class="meter-wrapper">
+  <img src="img/lightning.gif" class="lightning-img left" id="leftZap">
+  <div class="meter-container" id="meter"></div>
+  <img src="img/lightning.gif" class="lightning-img right" id="rightZap">
+</div>
+
 
     <div class="power-output" id="output">Power Level: 9,876,543</div>
 
@@ -228,6 +261,8 @@
       });
 
       meter.classList.toggle('overload', isOverload);
+document.querySelector('.meter-wrapper').classList.toggle('overload', isOverload);
+
       output.classList.toggle('overload', isOverload);
 
       if (isOverload) {
