@@ -57,6 +57,16 @@
     }
   </style>
 </head>
+  <script>
+  fetch("navbar.html")
+    .then(res => res.text())
+    .then(data => {
+      const nav = document.createElement("div");
+      nav.innerHTML = data;
+      document.body.insertBefore(nav, document.body.firstChild);
+    });
+</script>
+
 <body>
 
   <h1>Selected Works in Honor of Josh Dunbar</h1>
