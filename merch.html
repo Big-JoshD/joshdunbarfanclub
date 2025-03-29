@@ -6,23 +6,34 @@
   <title>Josh Dunbar Official Merch</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    .merch-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2.5rem;
-      padding: 2rem 1rem 4rem;
+    .merch-wrapper {
       max-width: 1000px;
       margin: 0 auto;
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+
+    .merch-header {
+      font-size: 1.5rem;
+      margin-bottom: 3rem;
+      font-weight: 500;
+      font-style: italic;
+    }
+
+    .merch-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 2rem;
     }
 
     .merch-item {
+      max-width: 300px;
       text-align: center;
     }
 
     .merch-item img {
-      max-width: 100%;
-      width: 300px;
+      width: 100%;
       height: auto;
       border-radius: 12px;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
@@ -46,8 +57,12 @@
   </style>
 </head>
 <body>
-  <main>
-    <section class="merch-container">
+  <main class="merch-wrapper">
+    <div class="merch-header">
+      Sacred garb for the chosen — wear the reverence of Josh.
+    </div>
+
+    <div class="merch-row">
       <div class="merch-item">
         <img src="img/ilovejoshdunbarshirt.png" alt="I Love Josh Dunbar Shirt" />
         <a href="https://www.teepublic.com/t-shirt/73811413-i-love-josh-dunbar?store_id=3793867" target="_blank">Buy "I Love Josh Dunbar" Shirt</a>
@@ -57,7 +72,7 @@
         <img src="img/beanpowershirt.png" alt="Bean Power Shirt" />
         <a href="https://www.teepublic.com/t-shirt/73811692-bean-power?store_id=3793867" target="_blank">Buy "Bean Power" Shirt</a>
       </div>
-    </section>
+    </div>
   </main>
 
   <script>
@@ -67,6 +82,16 @@
         const nav = document.createElement("div");
         nav.innerHTML = data;
         document.body.insertBefore(nav, document.body.firstChild);
+
+        nav.querySelectorAll(".dropdown > a").forEach(trigger => {
+          trigger.addEventListener("click", function (e) {
+            e.preventDefault();
+            const parent = this.parentElement;
+            const wasOpen = parent.classList.contains("open");
+            document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
+            if (!wasOpen) parent.classList.add("open");
+          });
+        });
       });
   </script>
 
