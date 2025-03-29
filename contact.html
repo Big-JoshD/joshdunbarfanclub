@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .contact-container {
+      max-width: 700px;
+      margin: 4rem auto;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .contact-container h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .contact-container p {
+      font-size: 1.2rem;
+      line-height: 1.6;
+    }
+
+    .email-link {
+      display: inline-block;
+      margin-top: 2rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #0077cc;
+      text-decoration: none;
+    }
+
+    .email-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <main class="contact-container">
+    <h1>Contact the Josh Dunbar Fanclub</h1>
+    <p>
+      For inquiries, revelations, press opportunities, or general devotion,<br />
+      please reach out to our sacred correspondence channel:
+    </p>
+    <a class="email-link" href="mailto:info@joshdunbarfanclub.com">info@joshdunbarfanclub.com</a>
+
+    <p style="margin-top: 3rem; font-style: italic; opacity: 0.8;">
+      For fan creations and artistic tributes, please direct your inspiration to:<br />
+      <a href="mailto:fansubmissions@joshdunbarfanclub.com">fansubmissions@joshdunbarfanclub.com</a>
+    </p>
+  </main>
+
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+
+        nav.querySelectorAll(".dropdown > a").forEach(trigger => {
+          trigger.addEventListener("click", function (e) {
+            e.preventDefault();
+            const parent = this.parentElement;
+            const wasOpen = parent.classList.contains("open");
+            document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
+            if (!wasOpen) parent.classList.add("open");
+          });
+        });
+      });
+  </script>
+
+  <footer>
+    <p style="text-align: center; font-size: 0.9rem; padding: 1rem;">
+      &copy; <span id="year"></span> Josh Dunbar Fanclub. All messages are subject to divine review.
+    </p>
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
