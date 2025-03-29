@@ -25,18 +25,32 @@
     </div>
 
     <!-- Divine Metrics Dropdown -->
-<div class="dropdown">
-  <a href="#">Josh's Divine Metrics ⬇</a>
-  <div class="dropdown-content">
-    <a href="ranktracker.html">Rocket League Rank Tracker</a>
-    <a href="bicepsize.html">Bicep Size Over Time</a>
-    <a href="chessmetrics.html">Josh's Chess Metrics</a>
-  </div>
-</div>
-
+    <div class="dropdown">
+      <a href="#">Josh's Divine Metrics ⬇</a>
+      <div class="dropdown-content">
+        <a href="ranktracker.html">Rocket League Rank Tracker</a>
+        <a href="bicepsize.html">Bicep Size Over Time</a>
+        <a href="chessmetrics.html">Josh's Chess Metrics</a>
+      </div>
+    </div>
 
     <!-- Standalone Links -->
+    <a href="merch.html">Merch</a>
     <a href="faq.html">FAQs</a>
     <a href="contact.html">Contact</a>
   </nav>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll(".dropdown > a").forEach(trigger => {
+        trigger.addEventListener("click", function (e) {
+          e.preventDefault();
+          const parent = this.parentElement;
+          const wasOpen = parent.classList.contains("open");
+          document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
+          if (!wasOpen) parent.classList.add("open");
+        });
+      });
+    });
+  </script>
 </header>
