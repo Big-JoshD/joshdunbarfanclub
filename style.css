@@ -190,3 +190,44 @@ h1 {
   opacity: 0;
   animation: fadeIn 1.5s ease-out forwards;
 }
+
+/* Global Styling Fixes */
+body {
+  overflow-x: hidden;
+}
+
+main, .content-box, .chart-section, .faq-container {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem;
+}
+
+nav {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+/* Responsive Mobile Adjustments */
+@media (max-width: 600px) {
+  nav {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .dropdown-content {
+    position: static;
+    width: 100%;
+    box-shadow: none;
+  }
+
+  canvas {
+    width: 100% !important;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+}
+
