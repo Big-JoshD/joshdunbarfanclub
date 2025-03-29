@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Josh Dunbar Official Merch</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .merch-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2.5rem;
+      padding: 2rem 1rem 4rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .merch-item {
+      text-align: center;
+    }
+
+    .merch-item img {
+      max-width: 100%;
+      width: 300px;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .merch-item a {
+      display: inline-block;
+      margin-top: 1rem;
+      font-weight: bold;
+      background: black;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background 0.3s;
+    }
+
+    .merch-item a:hover {
+      background: #333;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="merch-container">
+      <div class="merch-item">
+        <img src="img/ilovejoshdunbarshirt.png" alt="I Love Josh Dunbar Shirt" />
+        <a href="https://www.teepublic.com/t-shirt/73811413-i-love-josh-dunbar?store_id=3793867" target="_blank">Buy "I Love Josh Dunbar" Shirt</a>
+      </div>
+
+      <div class="merch-item">
+        <img src="img/beanpowershirt.png" alt="Bean Power Shirt" />
+        <a href="https://www.teepublic.com/t-shirt/73811692-bean-power?store_id=3793867" target="_blank">Buy "Bean Power" Shirt</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
+  </script>
+
+  <footer>
+    <p style="text-align: center; font-size: 0.9rem; padding: 1rem;">
+      &copy; <span id="year"></span> Josh Dunbar Fanclub. Clothing woven in reverence.
+    </p>
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
