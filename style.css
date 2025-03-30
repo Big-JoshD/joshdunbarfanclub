@@ -10,6 +10,12 @@ body {
   flex-direction: column;
   letter-spacing: 0.4px;
   font-size: 16px;
+  overflow-x: hidden;
+}
+
+body.lore-page {
+  background: url('img/librarybackdrop.jpg') center/cover no-repeat fixed;
+  background-color: #000;
 }
 
 main {
@@ -87,6 +93,7 @@ nav {
   align-items: center;
   gap: 2rem;
   font-size: 1rem;
+  flex-wrap: wrap;
 }
 
 nav a {
@@ -135,7 +142,6 @@ nav a:hover {
 .dropdown-content a:hover {
   background-color: #f4f4f4;
 }
-
 
 /* ==== Poetry Styling ==== */
 .poem {
@@ -191,45 +197,7 @@ h1 {
   animation: fadeIn 1.5s ease-out forwards;
 }
 
-/* Global Styling Fixes */
-body {
-  overflow-x: hidden;
-}
-
-main, .content-box, .chart-section, .faq-container {
-  max-width: 100%;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 1rem;
-}
-
-nav {
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-}
-
-/* Responsive Mobile Adjustments */
-@media (max-width: 600px) {
-  nav {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .dropdown-content {
-    position: static;
-    width: 100%;
-    box-shadow: none;
-  }
-
-  canvas {
-    width: 100% !important;
-  }
-
-  .section-title {
-    font-size: 1.5rem;
-  }
-}
+/* ==== Lore Styling ==== */
 .lore-section {
   max-width: 800px;
   margin: 4rem auto;
@@ -271,4 +239,34 @@ nav {
   max-width: 700px;
 }
 
+.lore-box {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 2rem;
+  margin: 2rem auto;
+  max-width: 800px;
+  background-color: #fff;
+  color: #111;
+}
 
+/* ==== Responsive Mobile Adjustments ==== */
+@media (max-width: 600px) {
+  nav {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .dropdown-content {
+    position: static;
+    width: 100%;
+    box-shadow: none;
+  }
+
+  canvas {
+    width: 100% !important;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+}
