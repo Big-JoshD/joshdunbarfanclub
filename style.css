@@ -13,11 +13,19 @@ body {
   overflow-x: hidden;
 }
 
-body.lore-page {
-  background: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)),
-              url('img/librarybackdrop.jpg') center/cover no-repeat fixed;
-  background-color: #f4f4f4;
+body.lore-page::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background-image: url('img/librarybackdrop.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.15;
+  z-index: -1;
 }
+
 
 
 
