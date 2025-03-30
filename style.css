@@ -14,10 +14,11 @@ body {
 }
 
 body.lore-page {
-  background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+  background: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)),
               url('img/librarybackdrop.jpg') center/cover no-repeat fixed;
-  background-color: #000;
+  background-color: #f4f4f4;
 }
+
 
 
 main {
