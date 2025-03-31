@@ -322,3 +322,9 @@ body.poetry-page::before {
 #like-btn:hover {
   background-color: #333;
 }
+
+@keyframes flashPop {
+  from { background-color: rgba(255, 0, 0, 0.9); }
+  to { background-color: #fff; color: red; }
+}
+
