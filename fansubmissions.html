@@ -6,6 +6,26 @@
   <title>Fan Submissions</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+<script>
+  const likeBtn = document.getElementById("like-btn");
+  const likeCount = document.getElementById("like-count");
+
+  // Get current count
+  fetch("https://api.countapi.xyz/get/joshdunbarfanclub/fanlikes")
+    .then(res => res.json())
+    .then(data => {
+      likeCount.textContent = data.value;
+    });
+
+  // On click, increment
+  likeBtn.addEventListener("click", () => {
+    fetch("https://api.countapi.xyz/hit/joshdunbarfanclub/fanlikes")
+      .then(res => res.json())
+      .then(data => {
+        likeCount.textContent = data.value;
+      });
+  });
+</script>
 <body>
   
   <main>
@@ -15,6 +35,19 @@
       Additional content will appear with fan submissions.
       Email josh@joshdunbarfanclub.com with your story.
     </p>
+    
+    <section class="content-box">
+  <h2>Fan Submissions</h2>
+  <p style="font-style: italic; color: #555;">
+    Collected encounters, testimonies, and revelations from believers.
+  </p>
+  
+  <div class="like-section">
+    <button id="like-btn">❤️ Like</button>
+    <span id="like-count">...</span> believers have been moved.
+  </div>
+</section>
+    
     <div class="content-box">
   <h2>Josh vs. Chuck Norris: Explained by My Dad</h2>
   <p>
