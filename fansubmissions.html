@@ -6,50 +6,6 @@
   <title>Fan Submissions</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-  <!-- Firebase SDKs -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
-  import { getFirestore, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBSujYHF0TRNIQV8KIp45DfCPtrY91NSQI",
-    authDomain: "josh-dunbar-fanclub.firebaseapp.com",
-    projectId: "josh-dunbar-fanclub",
-    storageBucket: "josh-dunbar-fanclub.appspot.com",
-    messagingSenderId: "974340112257",
-    appId: "1:974340112257:web:14def1f1804a92dab93280",
-    measurementId: "G-FXWMLGY8W4"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // Run when the page loads
-  async function setupLikes() {
-    const countSpan = document.getElementById("like-count");
-    const btn = document.getElementById("like-btn");
-    const fansRef = doc(db, "likes", "fans");
-
-    // Get current count
-    const docSnap = await getDoc(fansRef);
-    if (docSnap.exists()) {
-      countSpan.textContent = docSnap.data().count;
-    } else {
-      countSpan.textContent = "0";
-    }
-
-    // Increment on click
-    btn.addEventListener("click", async () => {
-      await updateDoc(fansRef, {
-        count: increment(1)
-      });
-      const updated = await getDoc(fansRef);
-      countSpan.textContent = updated.data().count;
-    });
-  }
-
-  window.addEventListener("DOMContentLoaded", setupLikes);
-</script>
 
 <body>
 
@@ -211,5 +167,49 @@
         document.body.insertBefore(nav, document.body.firstChild);
       });
   </script>
+   <!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBSujYHF0TRNIQV8KIp45DfCPtrY91NSQI",
+    authDomain: "josh-dunbar-fanclub.firebaseapp.com",
+    projectId: "josh-dunbar-fanclub",
+    storageBucket: "josh-dunbar-fanclub.appspot.com",
+    messagingSenderId: "974340112257",
+    appId: "1:974340112257:web:14def1f1804a92dab93280",
+    measurementId: "G-FXWMLGY8W4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Run when the page loads
+  async function setupLikes() {
+    const countSpan = document.getElementById("like-count");
+    const btn = document.getElementById("like-btn");
+    const fansRef = doc(db, "likes", "fans");
+
+    // Get current count
+    const docSnap = await getDoc(fansRef);
+    if (docSnap.exists()) {
+      countSpan.textContent = docSnap.data().count;
+    } else {
+      countSpan.textContent = "0";
+    }
+
+    // Increment on click
+    btn.addEventListener("click", async () => {
+      await updateDoc(fansRef, {
+        count: increment(1)
+      });
+      const updated = await getDoc(fansRef);
+      countSpan.textContent = updated.data().count;
+    });
+  }
+
+  window.addEventListener("DOMContentLoaded", setupLikes);
+</script>
 </body>
 </html>
