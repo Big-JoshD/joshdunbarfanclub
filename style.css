@@ -299,3 +299,25 @@ body.poetry-page::before {
   z-index: -1;
   pointer-events: none;
 }
+.like-section {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+#like-btn {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  background-color: #111;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-right: 0.5rem;
+  transition: background 0.3s ease;
+}
+
+#like-btn:hover {
+  background-color: #333;
+}
