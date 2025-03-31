@@ -172,18 +172,46 @@
     const likeBtn = document.getElementById("like-btn");
     const likeCount = document.getElementById("like-count");
 
-    // Load stored count or default to 0
-    let count = localStorage.getItem("joshLikes");
-    count = count ? parseInt(count) : 0;
-    likeCount.textContent = count;
+    const BASELINE = 1240;
+
+    let storedData = JSON.parse(localStorage.getItem("joshLikesData")) || {
+      added: 0,
+      lastUpdated: null,
+      liked: false
+    };
+
+    const today = new Date().toDateString();
+    if (storedData.lastUpdated !== today) {
+      const randomBoost = Math.floor(Math.random() * 5) + 1; // +1 to +5
+      storedData.added += randomBoost;
+      storedData.lastUpdated = today;
+      localStorage.setItem("joshLikesData", JSON.stringify(storedData));
+    }
+
+    const updateCount = () => {
+      likeCount.textContent = BASELINE + storedData.added;
+    };
+
+    updateCount();
+
+    if (storedData.liked) {
+      likeBtn.disabled = true;
+      likeBtn.textContent = "❤️ Liked";
+    }
 
     likeBtn.addEventListener("click", () => {
-      count += 1;
-      localStorage.setItem("joshLikes", count);
-      likeCount.textContent = count;
+      if (!storedData.liked) {
+        storedData.added += 1;
+        storedData.liked = true;
+        localStorage.setItem("joshLikesData", JSON.stringify(storedData));
+        updateCount();
+        likeBtn.disabled = true;
+        likeBtn.textContent = "❤️ Liked";
+      }
     });
   });
 </script>
+
 
 </body>
 </html>
