@@ -6,26 +6,7 @@
   <title>Fan Submissions</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<script>
-  const likeBtn = document.getElementById("like-btn");
-  const likeCount = document.getElementById("like-count");
 
-  // Get current count
-  fetch("https://api.countapi.xyz/get/joshdunbarfanclub/fanlikes")
-    .then(res => res.json())
-    .then(data => {
-      likeCount.textContent = data.value;
-    });
-
-  // On click, increment
-  likeBtn.addEventListener("click", () => {
-    fetch("https://api.countapi.xyz/hit/joshdunbarfanclub/fanlikes")
-      .then(res => res.json())
-      .then(data => {
-        likeCount.textContent = data.value;
-      });
-  });
-</script>
 <body>
   
   <main>
@@ -168,6 +149,27 @@
       document.body.insertBefore(nav, document.body.firstChild);
     });
 </script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const likeBtn = document.getElementById("like-btn");
+    const likeCount = document.getElementById("like-count");
 
+    // Get current count
+    fetch("https://api.countapi.xyz/get/joshdunbarfanclub/fanlikes")
+      .then(res => res.json())
+      .then(data => {
+        likeCount.textContent = data.value;
+      });
+
+    // On click, increment
+    likeBtn.addEventListener("click", () => {
+      fetch("https://api.countapi.xyz/hit/joshdunbarfanclub/fanlikes")
+        .then(res => res.json())
+        .then(data => {
+          likeCount.textContent = data.value;
+        });
+    });
+  });
+</script>
 </body>
 </html>
