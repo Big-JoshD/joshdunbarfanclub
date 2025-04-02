@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Josh Fact</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    main {
+      max-width: 800px;
+      margin: 5rem auto;
+      padding: 2rem;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 1rem;
+    }
+
+    #fact {
+      font-size: 1.3rem;
+      line-height: 1.6;
+      font-style: italic;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Daily Josh Fact</h1>
+    <p id="fact">Loading reverence...</p>
+  </main>
+
+  <script>
+    const facts = [
+      "Josh once lifted a barbell so quickly that the Earth's rotation paused.",
+      "It is believed that Josh’s footsteps can be heard in empty gyms at 3:00 A.M.",
+      "His protein shake formula is encrypted in an ancient dialect known only to monks.",
+      "There exists, somewhere in the Amazon, a temple dedicated to Josh.",
+      "Josh doesn’t need pre-workout. His veins are wired to the cosmos.",
+      "The United States has a defense protocol for if Josh goes rogue. It won't work.",
+      "When Josh Dunbar enters the room, dumbbells align themselves.",
+      "Legend says the first gym was built around a crater Josh left doing pushups.",
+      "Mirrors in gyms reflect his form even when he’s not there.",
+      "Josh Dunbar once entered a gym during peak hours. Every person in the gym instantly PR'd",
+      "Legends say his rest days shake the Earth — it yearns for motion.",
+      "No gyms have weight heavy enough for Josh. He simply lifts there to encourage others.",
+      "When Josh drops the bar, tectonic plates whisper of alignment.",
+      "Josh doesn’t spot — he blesses.",
+      "The first creatine crystal formed on his palm.",
+      "Josh’s warm-up is the peak of another man’s decade.",
+      "Josh doesn't take a break from the weights. The weights get a break from him.",
+      "The chalk on his hands binds myth to muscle.",
+      "A sculptor once tried to recreate Josh in marble — and he became blind.",
+      "Josh’s heart rate is a metronome of conquest.",
+      // Rocket League-specific (5)
+      "One day while Josh was playing Rocket League, the ball hovered midair, waiting for Josh to finish a set.",
+      "When Josh queues for Rocket League, the MMR rebalances out of fear.",
+      "Controllers vibrate in reverence when Josh touches the analog stick.",
+      "Josh’s kickoff is studied by physicists and ignored by time.",
+      "Every save he makes is felt in the spirit realm.",
+      // More power myths
+      "A rival once tried to match Josh’s curl — he now teaches yoga in exile.",
+      "The sun rises not for time, but for Josh’s morning lifts.",
+      "Gravity lowers slightly to assist him, then resumes with apology.",
+      "He once flexed at dawn and turned night to flame.",
+    ];
+
+    const day = new Date().getDate();
+    document.getElementById("fact").textContent = facts[(day - 1) % facts.length];
+  </script>
+
+  <script>
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(data => {
+        const nav = document.createElement("div");
+        nav.innerHTML = data;
+        document.body.insertBefore(nav, document.body.firstChild);
+      });
+  </script>
+</body>
+</html>
