@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Josh's Gym Runner</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Page-scoped styles to avoid bleeding into the rest of the site */
+    .game-page { display:flex; flex-direction:column; align-items:center; padding: 2rem 1rem 3rem; }
+    .game-wrap { position: relative; width: 100%; max-width: 960px; aspect-ratio: 3 / 1; background:#111; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.35); overflow:hidden; }
+    .hud { position:absolute; inset:0; pointer-events:none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee; }
+    .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; letter-spacing: .5px; }
+    .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
+    .center-message { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; }
+    .center-message .card { background: rgba(0,0,0,.55); color:#eee; padding: 14px 18px; border-radius: 8px; backdrop-filter: blur(3px); border:1px solid #ffffff18; }
+    .controls-hint { font-size:.9rem; opacity:.9; margin-top:.4rem; }
+    .btn { pointer-events:auto; cursor:pointer; background:#111; color:#fff; border:1px solid #fff2; padding:.5rem .75rem; border-radius:6px; font-weight:700; }
+
+    /* Pixel-art crispness for the canvas */
+    canvas { width:100%; height:100%; image-rendering: pixelated; image-rendering: crisp-edges; display:block; }
+  </style>
+</head>
+<body class="game-page">
+  <main class="content-box" style="max-width: 980px; width:100%">
+    <h1 class="section-title">Josh's Gym Runner</h1>
+    <p class="reverent-text" style="margin-bottom: 1rem;">Outdoor gym. Power racks in the foreground, mountains in the distance. Dodge 45lb plates and triceps ropes. PRs are temporary; reverence is forever.</p>
+
+    <div class="game-wrap">
+      <canvas id="game" width="960" height="320" aria-label="Josh's Gym Runner"></canvas>
+      <div class="hud" aria-live="polite">
+        <div class="hi" id="hi">HI 00000</div>
+        <div class="score" id="score">00000</div>
+        <div class="center-message" id="center">
+          <div class="card">
+            <div style="font-weight:700; margin-bottom:.25rem">Press Space / Tap to Begin</div>
+            <div class="controls-hint">Jump: Space / ▲ · Duck: ▼ · Pause: P</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+  // ===== Josh's Gym Runner (bare-bones) =====
+  // Spec choices from user:
+  // - Outdoor gym with power racks (foreground) + mountains (background)
+  // - 16-bit shaded Josh later; v1 uses boxes (animations mimic dino: run/jump/duck)
+  // - Obstacles: ground 45lb plates (rolling) + air triceps rope (sweeping)
+  // - No power-ups, no SFX, no accessibility toggles, no easter eggs
+  // - Show score + session-based high score
+  // - Place as top-level page; navbar link will be added separately
+
+  // Canvas & scaling
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;   // 960
+  const H = canvas.height;  // 320
+
+  // Game state
+  const STATE = {
+    running: false,
+    paused: false,
+    over: false,
+    started: false,
+    time: 0,
+    lastTime: 0,
+    delta: 0,
+    speed: 6,           // px/frame baseline (tuned by delta)
+    gravity: 0.7,       // jump feel
+    score: 0,
+    hi: Number(sessionStorage.getItem('jd_hi') || 0),
+  };
+
+  // World config
+  const GROUND_Y = H - 48;      // baseline ground
+  const GROUND_H = 20;          // belt thickness
+  const PLAYER = {
+    x: 80,
+    y: GROUND_Y - 48,
+    w: 40,
+    h: 48,
+    vy: 0,
+    ducking: false,
+    onGround: true,
+    animTime: 0,
+  };
+
+  // Obstacle pools
+  const obstacles = [];
+  let spawnTimer = 0;         // time since last spawn
+  let spawnGapMin = 650;      // ms
+  let spawnGapMax = 1200;     // ms
+
+  // Input
+  const keys = new Set();
+  let touchActive = false;
+  let touchStartY = 0;
+
+  // HUD
+  const scoreEl = document.getElementById('score');
+  const hiEl = document.getElementById('hi');
+  const centerEl = document.getElementById('center');
+
+  function fmt(n){ return n.toString().padStart(5,'0'); }
+  function updateHUD(){
+    scoreEl.textContent = fmt(Math.floor(STATE.score));
+    hiEl.textContent = 'HI ' + fmt(STATE.hi);
+  }
+
+  // ---------- Input handling ----------
+  function jump(){
+    if (!STATE.running || STATE.paused || STATE.over) return;
+    if (PLAYER.onGround){
+      PLAYER.vy = -12.5; // jump impulse
+      PLAYER.onGround = false;
+      PLAYER.ducking = false;
+    }
+  }
+  function duck(down){
+    if (!STATE.running || STATE.paused || STATE.over) return;
+    if (down && PLAYER.onGround){ PLAYER.ducking = true; }
+    else { PLAYER.ducking = false; }
+  }
+  function pauseToggle(){
+    if (!STATE.started || STATE.over) return;
+    STATE.paused = !STATE.paused;
+    centerEl.style.display = STATE.paused ? 'flex' : 'none';
+    if (STATE.paused){
+      centerEl.querySelector('.card').innerHTML = '<div style="font-weight:700; margin-bottom:.25rem">Paused</div><div class="controls-hint">Press P to Resume</div>';
+    }
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    keys.add(e.code);
+    if (!STATE.started && (e.code==='Space' || e.code==='ArrowUp')) startGame();
+    if (e.code==='Space' || e.code==='ArrowUp') jump();
+    if (e.code==='ArrowDown') duck(true);
+    if (e.code==='KeyP' || e.code==='Escape') pauseToggle();
+  });
+  window.addEventListener('keyup', (e)=>{
+    keys.delete(e.code);
+    if (e.code==='ArrowDown') duck(false);
+  });
+
+  // Touch: tap = jump; hold = duck
+  canvas.addEventListener('touchstart', (e)=>{
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    touchActive = true; touchStartY = t.clientY;
+    if (!STATE.started) startGame();
+    jump();
+  }, {passive:false});
+  canvas.addEventListener('touchmove', (e)=>{
+    e.preventDefault();
+    if (!touchActive) return;
+    const t = e.changedTouches[0];
+    const dy = t.clientY - touchStartY;
+    duck(dy > 20);
+  }, {passive:false});
+  canvas.addEventListener('touchend', (e)=>{
+    e.preventDefault();
+    touchActive = false; duck(false);
+  }, {passive:false});
+
+  // ---------- Game loop ----------
+  function startGame(){
+    STATE.started = true; STATE.running = true; STATE.over = false; STATE.paused = false;
+    STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnTimer = 0; PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true; PLAYER.ducking = false;
+    centerEl.style.display = 'none';
+    STATE.lastTime = performance.now();
+    requestAnimationFrame(tick);
+  }
+
+  function gameOver(){
+    STATE.over = true; STATE.running = false;
+    // Update session high score
+    const s = Math.floor(STATE.score);
+    if (s > STATE.hi){ STATE.hi = s; sessionStorage.setItem('jd_hi', String(s)); }
+    updateHUD();
+    centerEl.style.display = 'flex';
+    centerEl.querySelector('.card').innerHTML = `<div style="font-weight:700; margin-bottom:.25rem">Game Over</div><div>Score: ${fmt(s)}</div><div class="controls-hint" style="margin-top:.25rem">Press Space / Tap to retry</div>`;
+  }
+
+  function tick(now){
+    if (!STATE.running){ return; }
+    STATE.delta = Math.min(32, now - STATE.lastTime); // ms, clamp to avoid big jumps
+    STATE.lastTime = now;
+    if (!STATE.paused){
+      update(STATE.delta);
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function update(dt){
+    const dts = dt / (1000/60); // normalize vs 60fps
+
+    // Speed ramp: small increase over time
+    STATE.speed += 0.0008 * dts; // gentle ramp
+
+    // Spawn logic
+    spawnTimer += dt;
+    const nextGap = rand(spawnGapMin, spawnGapMax);
+    if (spawnTimer >= nextGap){
+      spawnTimer = 0;
+      spawnObstacle();
+      // Mildly tighten gaps as speed grows
+      spawnGapMin = Math.max(380, spawnGapMin - 1);
+      spawnGapMax = Math.max(700, spawnGapMax - 1);
+    }
+
+    // Update player physics
+    if (!PLAYER.onGround){
+      PLAYER.vy += STATE.gravity * dts * 0.5; // gravity step
+      PLAYER.y += PLAYER.vy * dts;
+      if (PLAYER.y >= GROUND_Y - PLAYER.h){
+        PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true;
+      }
+    } else if (PLAYER.ducking){
+      PLAYER.h = 32; // crouch height
+      PLAYER.y = GROUND_Y - PLAYER.h;
+    } else {
+      PLAYER.h = 48; // stand height
+      PLAYER.y = GROUND_Y - PLAYER.h;
+    }
+
+    // Update obstacles & collisions
+    for (let i = obstacles.length - 1; i >= 0; i--){
+      const o = obstacles[i];
+      o.x -= STATE.speed * dts;
+      if (o.x + o.w < -10){ obstacles.splice(i,1); continue; }
+      if (intersectAABB(playerHitbox(), o.hitbox())){ gameOver(); return; }
+    }
+
+    // Score
+    STATE.score += 0.35 * dts; // tuned feel
+    updateHUD();
+  }
+
+  // ---------- Entities ----------
+  function spawnObstacle(){
+    // 0 = ground plate, 1 = triceps rope (air/mid)
+    const type = Math.random() < 0.6 ? 0 : 1;
+    if (type === 0){
+      obstacles.push(PlateObstacle());
+    } else {
+      obstacles.push(RopeObstacle());
+    }
+  }
+
+  function PlateObstacle(){
+    // 45lb plate approximated as a circle rolling along ground
+    const size = 34; // visual diameter
+    const y = GROUND_Y - size + 6; // slight sink into ground for look
+    const spin = Math.random() * Math.PI;
+    return {
+      type: 'plate',
+      x: W + 10,
+      y,
+      w: size,
+      h: size,
+      spin,
+      hitbox(){ // slightly forgiving AABB
+        const pad = 6; return { x:this.x+pad, y:this.y+pad, w:this.w-2*pad, h:this.h-2*pad };
+      },
+      draw(ctx){
+        const cx = this.x + this.w/2, cy = this.y + this.h/2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        this.spin += 0.18; ctx.rotate(this.spin);
+        // Rim
+        ctx.fillStyle = '#2a2a2a';
+        ctx.beginPath(); ctx.arc(0,0,this.w*0.5,0,Math.PI*2); ctx.fill();
+        // Inner ring
+        ctx.fillStyle = '#3d3d3d';
+        ctx.beginPath(); ctx.arc(0,0,this.w*0.33,0,Math.PI*2); ctx.fill();
+        // Hub hole
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(0,0,this.w*0.09,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    };
+  }
+
+  function RopeObstacle(){
+    // Hanging triceps rope sweeping horizontally at mid/high lanes
+    const lanes = [GROUND_Y - 90, GROUND_Y - 130];
+    const baseY = lanes[Math.floor(Math.random()*lanes.length)];
+    const amp = 16 + Math.random()*10; // swing amplitude
+    const period = 1300 + Math.random()*600; // ms
+    const born = performance.now();
+    const w = 18, h = 60;
+    return {
+      type: 'rope',
+      x: W + 10,
+      y: baseY,
+      w, h,
+      hitbox(){ const pad = 4; return { x:this.x+pad, y:this.y+pad, w:this.w-2*pad, h:this.h-2*pad }; },
+      draw(ctx){
+        // draw a braided rope with a simple pattern and end knobs
+        const t = (performance.now() - born) / period;
+        const sway = Math.sin(t * Math.PI * 2) * amp; // horizontal sway
+        const x = this.x + sway;
+        // strap
+        ctx.fillStyle = '#222';
+        ctx.fillRect(x + w*0.45, this.y - 20, 2, 20);
+        // rope body
+        for (let i=0;i<this.h;i+=6){
+          ctx.fillStyle = i % 12 === 0 ? '#5a5a5a' : '#6b6b6b';
+          ctx.fillRect(x, this.y + i, this.w, 4);
+        }
+        // end knobs
+        ctx.fillStyle = '#2b2b2b';
+        ctx.fillRect(x-2, this.y + this.h, this.w+4, 10);
+        // cache hitbox center offset for collision probe
+        this.hitbox = function(){ const pad=4; return { x:x+pad, y:this.y+pad, w:this.w-2*pad, h:this.h-2*pad }; };
+      }
+    };
+  }
+
+  function playerHitbox(){
+    // Slight forgiveness
+    const pad = 6;
+    return { x: PLAYER.x+pad, y: PLAYER.y+pad, w: PLAYER.w-2*pad, h: PLAYER.h-2*pad };
+  }
+
+  function intersectAABB(a,b){
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+
+  // ---------- Rendering ----------
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    drawBackground(ctx);
+    drawGround(ctx);
+
+    // Player (box for v1)
+    drawPlayer(ctx);
+
+    // Obstacles
+    for (const o of obstacles){
+      if (o.draw) o.draw(ctx); else { ctx.fillStyle = '#c33'; ctx.fillRect(o.x,o.y,o.w,o.h); }
+    }
+  }
+
+  function drawPlayer(ctx){
+    // Box placeholder; colors mimic 16-bit shaded blue hoodie
+    const g = ctx.createLinearGradient(PLAYER.x,PLAYER.y, PLAYER.x, PLAYER.y+PLAYER.h);
+    g.addColorStop(0,'#6aa1ff');
+    g.addColorStop(1,'#2a58b0');
+    ctx.fillStyle = g;
+    ctx.fillRect(PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
+
+    // Simple leg animation lines when on ground and not ducking
+    if (PLAYER.onGround && !PLAYER.ducking){
+      const t = performance.now()/100;
+      ctx.strokeStyle = '#0b2f6d';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(PLAYER.x+10, PLAYER.y+PLAYER.h-6);
+      ctx.lineTo(PLAYER.x+10 + Math.sin(t)*4, PLAYER.y+PLAYER.h-2);
+      ctx.moveTo(PLAYER.x+PLAYER.w-10, PLAYER.y+PLAYER.h-6);
+      ctx.lineTo(PLAYER.x+PLAYER.w-10 + Math.cos(t)*4, PLAYER.y+PLAYER.h-2);
+      ctx.stroke();
+    }
+  }
+
+  function drawGround(ctx){
+    // Rubber gym flooring belt
+    ctx.fillStyle = '#2b2b2b';
+    ctx.fillRect(0, GROUND_Y, W, GROUND_H);
+
+    // Subtle belt movement markers
+    ctx.fillStyle = '#1f1f1f';
+    const segW = 24; const offset = Math.floor((performance.now()/30) % segW);
+    for (let x=-offset; x<W; x+=segW){
+      ctx.fillRect(x, GROUND_Y+GROUND_H-6, 12, 3);
+    }
+
+    // Power racks (foreground elements that scroll slower than obstacles but faster than mountains)
+    drawRacks(ctx);
+  }
+
+  function drawRacks(ctx){
+    const rackSpacing = 200; // pixels between rack uprights groups
+    const speed = STATE.speed * 0.6; // parallax-ish
+    const base = GROUND_Y - 100;
+    const now = performance.now();
+    const scroll = (now/16 * speed) % rackSpacing;
+    ctx.strokeStyle = '#3c3c3c';
+    ctx.lineWidth = 3;
+    for (let x = -scroll; x < W + rackSpacing; x += rackSpacing){
+      // two uprights
+      ctx.beginPath();
+      ctx.moveTo(x+20, base); ctx.lineTo(x+20, GROUND_Y);
+      ctx.moveTo(x+60, base); ctx.lineTo(x+60, GROUND_Y);
+      ctx.stroke();
+      // top crossbar
+      ctx.beginPath(); ctx.moveTo(x+20, base); ctx.lineTo(x+60, base); ctx.stroke();
+      // j-hooks
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(x+18, base+20, 8, 4);
+      ctx.fillRect(x+58, base+36, 8, 4);
+    }
+  }
+
+  function drawBackground(ctx){
+    // Sky gradient
+    const sky = ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,'#8fb8ff');
+    sky.addColorStop(1,'#d7ecff');
+    ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
+
+    // Distant mountains layer (slow parallax)
+    const speed = STATE.speed * 0.2;
+    const now = performance.now();
+    const scroll = (now/24 * speed) % W;
+
+    function mountain(x0, baseY, peakX, peakY, x1){
+      ctx.beginPath(); ctx.moveTo(x0, baseY); ctx.lineTo(peakX, peakY); ctx.lineTo(x1, baseY); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#6d7faa';
+    for (let i=-1; i<3; i++){
+      const base = i*W - scroll;
+      mountain(base+0, H-120, base+160, H-220, base+320);
+      mountain(base+240, H-110, base+380, H-190, base+520);
+      mountain(base+500, H-130, base+660, H-230, base+820);
+    }
+
+    // Mid mountains (slightly darker & faster)
+    const scroll2 = (now/18 * (STATE.speed*0.3)) % W;
+    ctx.fillStyle = '#556791';
+    for (let i=-1; i<3; i++){
+      const base = i*W - scroll2;
+      mountain(base+80, H-90, base+210, H-170, base+340);
+      mountain(base+360, H-100, base+490, H-180, base+620);
+      mountain(base+620, H-95, base+750, H-165, base+880);
+    }
+  }
+
+  // Initial HUD paint
+  updateHUD();
+
+  // Visibility pause (nice to have)
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.hidden && STATE.started && !STATE.over){ STATE.paused = true; centerEl.style.display = 'flex'; centerEl.querySelector('.card').innerHTML = '<div style="font-weight:700; margin-bottom:.25rem">Paused</div><div class="controls-hint">Switch back to resume</div>'; }
+  });
+
+  // Click canvas to (re)start
+  canvas.addEventListener('click', ()=>{
+    if (!STATE.started || STATE.over){ startGame(); }
+  });
+
+  // Navbar inject
+  fetch('navbar.html').then(r=>r.text()).then(html=>{
+    const nav = document.createElement('div');
+    nav.innerHTML = html; document.body.insertBefore(nav, document.body.firstChild);
+  });
+  </script>
+</body>
+</html>
