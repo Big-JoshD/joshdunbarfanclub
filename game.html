@@ -19,6 +19,9 @@
 
     /* Pixel-art crispness for the canvas */
     canvas { width:100%; height:100%; image-rendering: pixelated; image-rendering: crisp-edges; display:block; }
+    /* Prevent page from scrolling during gameplay/start screen */
+    html, body { height: 100%; }
+    body.game-page { overflow: hidden; }
   </style>
 </head>
 <body class="game-page">
@@ -147,7 +150,27 @@
     if (e.code==='ArrowDown') duck(false);
   }
   // Attach to both window and document for maximum reliability
+  function preventScrollKeys(e){
+    const active = document.activeElement;
+    const typing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+    if (typing) return;
+    const code = e.code || '';
+    const isScrollKey = code === 'Space' || code === 'ArrowUp' || code === 'ArrowDown' || e.key === ' ';
+    if (isScrollKey){ e.preventDefault(); }
+  }
+  window.addEventListener('keydown', preventScrollKeys, {capture:true});
+  document.addEventListener('keydown', preventScrollKeys, {capture:true});
+
   window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+  document.addEventListener('keydown', handleKeyDown, {capture:true});
+  document.addEventListener('keyup', handleKeyUp, {capture:true});
+  // Older browsers sometimes only fire keypress for space
+  document.addEventListener('keypress', (e)=>{
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+    if ((!STATE.started || STATE.over) && (e.key === ' ' || e.code === 'Space')){ e.preventDefault(); startGame(); }
+  }, {capture:true});
   window.addEventListener('keyup', handleKeyUp);
   document.addEventListener('keydown', handleKeyDown, {capture:true});
   document.addEventListener('keyup', handleKeyUp, {capture:true});
@@ -522,8 +545,8 @@
     if (!STATE.started || STATE.over){ if (e) e.preventDefault(); startGame(); }
   }
   canvas.addEventListener('click', startIfReady);
-  document.addEventListener('pointerdown', startIfReady, {passive:false});
-  document.addEventListener('touchstart', startIfReady, {passive:false}); }
+  document.addEventListener('pointerdown', startIfReady, {passive:false, capture:true});
+  document.addEventListener('touchstart', startIfReady, {passive:false, capture:true}); }
   });
 
   // Navbar inject
@@ -533,6 +556,8 @@
     // Focus the canvas so Space works without scrolling
     setTimeout(()=>{ try{ canvas.focus(); }catch{} }, 0);
   });
+  // Also focus on DOM ready in case navbar loads slowly
+  document.addEventListener('DOMContentLoaded', ()=>{ try{ canvas.focus(); }catch{} });
   </script>
 </body>
 </html>
