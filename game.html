@@ -137,14 +137,19 @@
   }
 
   window.addEventListener('keydown', (e)=>{
+    // Allow starting from anywhere with Space/ArrowUp and prevent page scroll
+    const isStartKey = (e.code==='Space' || e.code==='ArrowUp' || e.key===' ' || e.key==='Spacebar');
+    if ((!STATE.started || STATE.over) && isStartKey){ e.preventDefault(); startGame(); return; }
+
     keys.add(e.code);
-    if (!STATE.started && (e.code==='Space' || e.code==='ArrowUp')) startGame();
-    if (e.code==='Space' || e.code==='ArrowUp') jump();
+    if (isStartKey) { e.preventDefault(); jump(); }
     if (e.code==='ArrowDown') duck(true);
     if (e.code==='KeyP' || e.code==='Escape') pauseToggle();
   });
   window.addEventListener('keyup', (e)=>{
     keys.delete(e.code);
+    if (e.code==='ArrowDown') duck(false);
+  });
     if (e.code==='ArrowDown') duck(false);
   });
 
@@ -505,9 +510,13 @@
     if (document.hidden && STATE.started && !STATE.over){ STATE.paused = true; centerEl.style.display = 'flex'; centerEl.querySelector('.card').innerHTML = '<div style="font-weight:700; margin-bottom:.25rem">Paused</div><div class="controls-hint">Switch back to resume</div>'; }
   });
 
-  // Click canvas to (re)start
-  canvas.addEventListener('click', ()=>{
-    if (!STATE.started || STATE.over){ startGame(); }
+  // Start game on any pointer/tap/click (not just the canvas)
+  function startIfReady(e){
+    if (!STATE.started || STATE.over){ if (e) e.preventDefault(); startGame(); }
+  }
+  canvas.addEventListener('click', startIfReady);
+  document.addEventListener('pointerdown', startIfReady, {passive:false});
+  document.addEventListener('touchstart', startIfReady, {passive:false}); }
   });
 
   // Navbar inject
