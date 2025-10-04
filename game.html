@@ -33,7 +33,10 @@
         <div class="score" id="score">00000</div>
         <div class="center-message" id="center">
           <div class="card">
-            <div style="font-weight:700; margin-bottom:.25rem">Press Space / Tap to Begin</div>
+            <div style="font-weight:700; margin-bottom:.25rem">Help Bean survive the outdoor gym</div>
+            <div class="controls-hint">Jump: Space / ▲ · Duck: ▼ · Pause: P</div>
+            <div class="controls-hint" style="opacity:.8; margin-top:.25rem;">Press Space / Tap to begin</div>
+          </div>
             <div class="controls-hint">Jump: Space / ▲ · Duck: ▼ · Pause: P</div>
           </div>
         </div>
@@ -43,11 +46,11 @@
 
   <script>
   // ===== Josh's Gym Runner (bare-bones) =====
-  // Spec choices from user:
+  // Spec choices from user (updated):
   // - Outdoor gym with power racks (foreground) + mountains (background)
-  // - 16-bit shaded Josh later; v1 uses boxes (animations mimic dino: run/jump/duck)
+  // - PLAYABLE CHARACTER: 8‑bit Bean (dog). Final art will be 16-bit shaded/pixel style; v1 uses a placeholder pixel Bean
   // - Obstacles: ground 45lb plates (rolling) + air triceps rope (sweeping)
-  // - No power-ups, no SFX, no accessibility toggles, no easter eggs
+  // - No power-ups, no SFX, no accessibility/easter eggs
   // - Show score + session-based high score
   // - Place as top-level page; navbar link will be added separately
 
@@ -67,7 +70,7 @@
     lastTime: 0,
     delta: 0,
     speed: 6,           // px/frame baseline (tuned by delta)
-    gravity: 0.7,       // jump feel
+    gravity: 1.05,       // jump feel
     score: 0,
     hi: Number(sessionStorage.getItem('jd_hi') || 0),
   };
@@ -77,20 +80,22 @@
   const GROUND_H = 20;          // belt thickness
   const PLAYER = {
     x: 80,
-    y: GROUND_Y - 48,
-    w: 40,
-    h: 48,
+    y: GROUND_Y - 40,
+    w: 44,
+    h: 40,
     vy: 0,
     ducking: false,
     onGround: true,
     animTime: 0,
+    frame: 0,
+    spriteReady: false,
   };
 
   // Obstacle pools
   const obstacles = [];
-  let spawnTimer = 0;         // time since last spawn
-  let spawnGapMin = 650;      // ms
-  let spawnGapMax = 1200;     // ms
+  let spawnCooldown = 800; // ms until next obstacle
+  let spawnGapMin = 900;   // start gentle
+  let spawnGapMax = 1500;  // start gentle
 
   // Input
   const keys = new Set();
@@ -112,7 +117,7 @@
   function jump(){
     if (!STATE.running || STATE.paused || STATE.over) return;
     if (PLAYER.onGround){
-      PLAYER.vy = -12.5; // jump impulse
+      PLAYER.vy = -10.2; // jump impulse
       PLAYER.onGround = false;
       PLAYER.ducking = false;
     }
@@ -197,17 +202,30 @@
     const dts = dt / (1000/60); // normalize vs 60fps
 
     // Speed ramp: small increase over time
-    STATE.speed += 0.0008 * dts; // gentle ramp
+    // Speed ramp: gentle at first, increases later
+    if (STATE.score < 300) STATE.speed += 0.0005 * dts;
+    else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
+    else STATE.speed += 0.0011 * dts; // gentle ramp
 
     // Spawn logic
-    spawnTimer += dt;
-    const nextGap = rand(spawnGapMin, spawnGapMax);
-    if (spawnTimer >= nextGap){
-      spawnTimer = 0;
+    // Obstacle spawn progression like Chrome dino (starts easy → harder)
+    spawnCooldown -= dt;
+    if (spawnCooldown <= 0){
       spawnObstacle();
-      // Mildly tighten gaps as speed grows
-      spawnGapMin = Math.max(380, spawnGapMin - 1);
-      spawnGapMax = Math.max(700, spawnGapMax - 1);
+      // Reset cooldown based on current difficulty window
+      const gap = rand(spawnGapMin, spawnGapMax);
+      spawnCooldown = gap;
+    }
+
+    // Dynamic difficulty tuning based on score (progressive tightening)
+    if (STATE.score < 150){
+      spawnGapMin = 900; spawnGapMax = 1500; // very chill
+    } else if (STATE.score < 350){
+      spawnGapMin = 750; spawnGapMax = 1300;
+    } else if (STATE.score < 700){
+      spawnGapMin = 600; spawnGapMax = 1100;
+    } else {
+      spawnGapMin = 480; spawnGapMax = 950;
     }
 
     // Update player physics
@@ -240,11 +258,19 @@
 
   // ---------- Entities ----------
   function spawnObstacle(){
-    // 0 = ground plate, 1 = triceps rope (air/mid)
-    const type = Math.random() < 0.6 ? 0 : 1;
+    // Early game favors ground plates; ropes appear later like dino’s pterodactyls
+    let type = 0; // plate by default
+    if (STATE.score > 180){
+      // mix in ropes gradually
+      const ropeChance = STATE.score > 500 ? 0.45 : 0.25;
+      type = Math.random() < ropeChance ? 1 : 0;
+    }
     if (type === 0){
       obstacles.push(PlateObstacle());
     } else {
+      obstacles.push(RopeObstacle());
+    }
+  } else {
       obstacles.push(RopeObstacle());
     }
   }
@@ -331,6 +357,28 @@
 
   function rand(min,max){ return Math.random()*(max-min)+min; }
 
+  // ---------- Sprites (optional; will gracefully fall back) ----------
+  const beanSprites = {
+    run: { image: new Image(), fw: 64, fh: 64, frames: 6, ready:false },
+    jump:{ image: new Image(), fw: 64, fh: 64, frames: 1, ready:false },
+    duck:{ image: new Image(), fw: 64, fh: 64, frames: 2, ready:false },
+  };
+  // If you later add PNGs at these paths, they will be used automatically
+  beanSprites.run.image.src = 'img/game/bean_run.png';
+  beanSprites.jump.image.src = 'img/game/bean_jump.png';
+  beanSprites.duck.image.src = 'img/game/bean_duck.png';
+  for (const key of Object.keys(beanSprites)){
+    beanSprites[key].image.onload = ()=> beanSprites[key].ready = true;
+    beanSprites[key].image.onerror = ()=>{}; // stay quiet if missing
+  }
+
+  function drawSprite(ctx, img, fw, fh, frameIndex, x, y, w, h){
+    const sx = (frameIndex % Math.floor(img.width/fw)) * fw;
+    const sy = Math.floor(frameIndex / Math.floor(img.width/fw)) * fh;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, sx, sy, fw, fh, x, y, w, h);
+  }
+
   // ---------- Rendering ----------
   function draw(){
     ctx.clearRect(0,0,W,H);
@@ -347,28 +395,36 @@
   }
 
   function drawPlayer(ctx){
-    // Box placeholder; colors mimic 16-bit shaded blue hoodie
-    const g = ctx.createLinearGradient(PLAYER.x,PLAYER.y, PLAYER.x, PLAYER.y+PLAYER.h);
-    g.addColorStop(0,'#6aa1ff');
-    g.addColorStop(1,'#2a58b0');
-    ctx.fillStyle = g;
-    ctx.fillRect(PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
-
-    // Simple leg animation lines when on ground and not ducking
-    if (PLAYER.onGround && !PLAYER.ducking){
-      const t = performance.now()/100;
-      ctx.strokeStyle = '#0b2f6d';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(PLAYER.x+10, PLAYER.y+PLAYER.h-6);
-      ctx.lineTo(PLAYER.x+10 + Math.sin(t)*4, PLAYER.y+PLAYER.h-2);
-      ctx.moveTo(PLAYER.x+PLAYER.w-10, PLAYER.y+PLAYER.h-6);
-      ctx.lineTo(PLAYER.x+PLAYER.w-10 + Math.cos(t)*4, PLAYER.y+PLAYER.h-2);
-      ctx.stroke();
+    // Try to draw sprite if available, else draw a pixel-art placeholder Bean
+    if (beanSprites.run && beanSprites.run.ready){
+      const sheet = PLAYER.ducking && beanSprites.duck.ready ? beanSprites.duck : (PLAYER.onGround ? beanSprites.run : beanSprites.jump);
+      PLAYER.animTime += 0.016;
+      const fps = PLAYER.onGround ? 10 : 1;
+      if (PLAYER.onGround){ PLAYER.frame = Math.floor(PLAYER.animTime*fps) % sheet.frames; } else { PLAYER.frame = 0; }
+      drawSprite(ctx, sheet.image, sheet.fw, sheet.fh, PLAYER.frame, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
+    } else {
+      // Placeholder: chonky pixel Bean silhouette with ear triangles and tail
+      ctx.fillStyle = '#1b1b1b';
+      ctx.fillRect(PLAYER.x, PLAYER.y+PLAYER.h-6, PLAYER.w, 6); // little shadow
+      // body
+      ctx.fillStyle = '#5a3d2e';
+      ctx.fillRect(PLAYER.x+6, PLAYER.y+8, PLAYER.w-12, PLAYER.h-12);
+      // head
+      ctx.fillRect(PLAYER.x+PLAYER.w-24, PLAYER.y, 20, 16);
+      // ears
+      ctx.fillStyle = '#3d281f';
+      ctx.fillRect(PLAYER.x+PLAYER.w-12, PLAYER.y-4, 4, 6);
+      ctx.fillRect(PLAYER.x+PLAYER.w-18, PLAYER.y-4, 4, 6);
+      // collar
+      ctx.fillStyle = '#2a58b0';
+      ctx.fillRect(PLAYER.x+8, PLAYER.y+14, PLAYER.w-26, 3);
+      // tail
+      ctx.fillStyle = '#5a3d2e';
+      ctx.fillRect(PLAYER.x+2, PLAYER.y+16, 6, 4);
     }
   }
 
-  function drawGround(ctx){
+  function drawGround(ctx){(ctx){
     // Rubber gym flooring belt
     ctx.fillStyle = '#2b2b2b';
     ctx.fillRect(0, GROUND_Y, W, GROUND_H);
