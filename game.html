@@ -70,6 +70,7 @@
   // World
   const GROUND_Y = H - 48, GROUND_H = 20;
   const PLAYER = { x:80, y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true };
+  const groundTop = (h) => GROUND_Y - h + BEAN_FOOT_SINK;
   const obstacles = [];
   let spawnCooldown = 900; // ms until next obstacle
 
