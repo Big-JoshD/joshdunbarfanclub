@@ -160,14 +160,27 @@
   }
 
   // ---------- Obstacles ----------
+    // ---- Sprite helper + squirrel sheet ----
+function drawSprite(ctx, img, fw, fh, frame, x, y, w, h) {
+  const cols = Math.max(1, Math.floor(img.width / fw));
+  const sx = (frame % cols) * fw;
+  const sy = Math.floor(frame / cols) * fh;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, sx, sy, fw, fh, x, y, w, h);
+}
+
+const SQUIRREL_SPRITE = { img: new Image(), fw: 64, fh: 64, frames: 3, ready: false };
+SQUIRREL_SPRITE.img.src = 'img/squirrel.png';   // <-- your chosen path
+SQUIRREL_SPRITE.img.onload = () => SQUIRREL_SPRITE.ready = true;
+
   function spawnObstacle(){
-    let type = 0; // plate by default early
-    if (STATE.score > 180){ // ropes later like dino birds
-      const ropeChance = STATE.score > 500 ? 0.45 : 0.25;
-      type = Math.random() < ropeChance ? 1 : 0;
-    }
-    obstacles.push(type === 0 ? Plate() : Rope());
+  let type = 0; // plate by default early
+  if (STATE.score > 180){
+    const squirrelChance = STATE.score > 500 ? 0.45 : 0.25;   // like dino birds later
+    type = Math.random() < squirrelChance ? 1 : 0;
   }
+  obstacles.push(type === 0 ? Plate() : Squirrel());
+}
   function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
   function currentGapMax(){ return STATE.score < 150 ? 1500 : STATE.score < 350 ? 1300 : STATE.score < 700 ? 1100 : 950; }
 
@@ -187,22 +200,40 @@
     };
   }
 
-  function Rope(){
-    const lanes = [GROUND_Y - 90, GROUND_Y - 130];
-    const baseY = lanes[Math.floor(Math.random()*lanes.length)];
-    const amp = 16 + Math.random()*10; const period = 1300 + Math.random()*600; const born = performance.now();
-    const w = 18, h = 60;
-    return {
-      type:'rope', x: W+10, y: baseY, w, h,
-      box(){ const t=(performance.now()-born)/period; const sway = Math.sin(t*Math.PI*2)*amp; const x = this.x + sway; return {x:x+4,y:this.y+4,w:this.w-8,h:this.h-8}; },
-      draw(){
-        const t=(performance.now()-born)/period; const sway = Math.sin(t*Math.PI*2)*amp; const x = this.x + sway;
-        ctx.fillStyle = '#222'; ctx.fillRect(x + w*0.45, this.y-20, 2, 20);
-        for (let i=0;i<this.h;i+=6){ ctx.fillStyle = i%12===0?'#5a5a5a':'#6b6b6b'; ctx.fillRect(x, this.y+i, this.w, 4); }
-        ctx.fillStyle = '#2b2b2b'; ctx.fillRect(x-2, this.y+this.h, this.w+4, 10);
+  function Squirrel(){
+  // mid / high “lanes”, with gentle glide
+  const lanes = [GROUND_Y - 100, GROUND_Y - 140];
+  const baseY = lanes[Math.floor(Math.random() * lanes.length)];
+  const amp = 10 + Math.random() * 10;            // vertical glide amplitude
+  const period = 1000 + Math.random() * 500;      // glide period (ms)
+  const born = performance.now();
+
+  const w = 48, h = 36;                            // render size on canvas
+  let animFrame = 0;
+
+  return {
+    type: 'squirrel', x: W + 10, y: baseY, w, h,
+    box(){ const p = 6; return { x: this.x + p, y: this.y + p, w: this.w - 2*p, h: this.h - 2*p }; },
+    draw(){
+      // glide path
+      const t = (performance.now() - born) / period;
+      this.y = baseY + Math.sin(t * Math.PI * 2) * amp;
+
+      // flap animation @ ~8 fps
+      if (SQUIRREL_SPRITE.ready){
+        animFrame = Math.floor((performance.now() / 1000) * 8) % SQUIRREL_SPRITE.frames;
+        drawSprite(ctx, SQUIRREL_SPRITE.img, SQUIRREL_SPRITE.fw, SQUIRREL_SPRITE.fh, animFrame, this.x, this.y, this.w, this.h);
+      } else {
+        // fallback: tiny pixel squirrel with red “devil” wings
+        ctx.fillStyle = '#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4); // shadow
+        ctx.fillStyle = '#111';     ctx.fillRect(this.x + 6, this.y + 8, this.w - 12, this.h - 12); // body
+        ctx.fillStyle = '#700';     ctx.fillRect(this.x + 2, this.y + 6, 12, 6); ctx.fillRect(this.x + this.w - 14, this.y + 6, 12, 6); // wings
+        ctx.fillStyle = '#111';     ctx.fillRect(this.x + this.w - 10, this.y + 8, 8, 6); // head
       }
-    };
-  }
+    }
+  };
+}
+
 
   // ---------- Collision ----------
   const playerBox = () => { const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
