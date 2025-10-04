@@ -33,7 +33,7 @@
         <div class="center" id="center">
           <div class="card">
             <div style="font-weight:700">Press Space / Tap to begin</div>
-            <div class="sub">Jump: Space / ▲ &nbsp;•&nbsp; Duck: ▼ &nbsp;•&nbsp; Pause: P</div>
+            <div class="sub">Jump: Space / ▲ &nbsp;•&nbsp; Duck/Slide: ▼ &nbsp;•&nbsp; Pause: P</div>
           </div>
         </div>
       </div>
@@ -41,9 +41,9 @@
   </main>
 
   <script>
-  // ===== Bean Run — minimal, stable build =====
-  // Theme: outdoor gym (mountains bg + power racks fg); obstacles: 45lb plate (ground) + triceps rope (air)
-  // No power-ups/SFX. Score + session high score only.
+  // ===== Bean Run — sprite build =====
+  // Bean sprites: /img/bean_run.png (6f @64x64), /img/bean_jump.png (1f), /img/bean_slide.png (1f)
+  // Squirrel obstacle: /img/squirrel.png (1f @64x64) with glide/bob motion
 
   // Canvas
   const canvas = document.getElementById('game');
@@ -66,62 +66,78 @@
 
   // World
   const GROUND_Y = H - 48, GROUND_H = 20;
-  const PLAYER = { x:80, y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true };
+  const PLAYER = { x:80, y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true, frame:0, animTime:0 };
   const obstacles = [];
   let spawnCooldown = 900; // ms until next obstacle
 
-  // ---------- Input (simple & reliable) ----------
+  // ---------- Sprites ----------
+  function drawSprite(ctx, img, fw, fh, frame, x, y, w, h, rot=0){
+    const cols = Math.max(1, Math.floor(img.width / fw));
+    const sx = (frame % cols) * fw;
+    const sy = Math.floor(frame / cols) * fh;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x + w/2, y + h/2);
+    if (rot) ctx.rotate(rot);
+    ctx.drawImage(img, sx, sy, fw, fh, -w/2, -h/2, w, h);
+    ctx.restore();
+  }
+
+  const BEAN = {
+    run:   { img:new Image(), fw:64, fh:64, frames:6, ready:false, fps:10 },
+    jump:  { img:new Image(), fw:64, fh:64, frames:1, ready:false, fps:1  },
+    slide: { img:new Image(), fw:64, fh:64, frames:1, ready:false, fps:1  },
+  };
+  BEAN.run.img.src   = '/img/bean_run.png';
+  BEAN.jump.img.src  = '/img/bean_jump.png';
+  BEAN.slide.img.src = '/img/bean_slide.png';
+  for (const k of Object.keys(BEAN)) BEAN[k].img.onload = ()=> BEAN[k].ready = true;
+
+  const SQUIRREL = { img:new Image(), fw:64, fh:64, frames:1, ready:false };
+  SQUIRREL.img.src = '/img/squirrel.png';
+  SQUIRREL.img.onload = ()=> SQUIRREL.ready = true;
+
+  // ---------- Input ----------
   function startGame(){
     STATE.started = true; STATE.running = true; STATE.over = false; STATE.paused = false;
     STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnCooldown = 900;
-    PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true; PLAYER.duck = false;
+    Object.assign(PLAYER, { y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true, frame:0, animTime:0 });
     centerEl.style.display = 'none';
     STATE.last = performance.now();
     requestAnimationFrame(loop);
   }
-
-  function startIfReady(){ if (!STATE.started || STATE.over) startGame(); }
-
-  function jump(){
-    if (!STATE.running || STATE.paused || STATE.over) return;
-    if (PLAYER.onGround){ PLAYER.vy = -10.2; PLAYER.onGround = false; PLAYER.duck = false; }
-  }
+  const startIfReady = ()=>{ if (!STATE.started || STATE.over) startGame(); };
+  function jump(){ if (!STATE.running || STATE.paused || STATE.over) return; if (PLAYER.onGround){ PLAYER.vy = -10.2; PLAYER.onGround = false; PLAYER.duck = false; } }
   function setDuck(d){ if (!STATE.running || STATE.paused || STATE.over) return; PLAYER.duck = !!d; }
   function togglePause(){ if (!STATE.started || STATE.over) return; STATE.paused = !STATE.paused; centerEl.style.display = STATE.paused ? 'flex' : 'none'; }
 
   window.addEventListener('keydown', (e)=>{
-    if (e.code==='Space' || e.code==='ArrowUp') { e.preventDefault(); if (!STATE.started || STATE.over) startGame(); else jump(); }
+    if (e.code==='Space' || e.code==='ArrowUp'){ e.preventDefault(); if (!STATE.started || STATE.over) startGame(); else jump(); }
     if (e.code==='ArrowDown') setDuck(true);
     if (e.code==='KeyP' || e.code==='Escape') togglePause();
   });
   window.addEventListener('keyup', (e)=>{ if (e.code==='ArrowDown') setDuck(false); });
-
   canvas.addEventListener('click', (e)=>{ e.preventDefault(); startIfReady(); });
   canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); startIfReady(); }, {passive:false});
-
   document.addEventListener('DOMContentLoaded', ()=>{ try{ canvas.focus(); }catch{} });
 
   // ---------- Loop ----------
   function loop(now){
     if (!STATE.running) return;
-    const dt = Math.min(32, now - STATE.last); // ms
+    const dt = Math.min(32, now - STATE.last);
     const dts = dt / (1000/60);
     STATE.last = now;
-
-    if (!STATE.paused){
-      update(dts, dt);
-      draw();
-    }
+    if (!STATE.paused){ update(dts, dt); draw(); }
     requestAnimationFrame(loop);
   }
 
   function update(dts, dt){
-    // Speed ramp (gentle → stronger as score rises)
+    // Speed ramp
     if (STATE.score < 300) STATE.speed += 0.0005 * dts;
     else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
     else STATE.speed += 0.0011 * dts;
 
-    // Spawn difficulty like Chrome dino
+    // Spawn progression
     spawnCooldown -= dt;
     if (spawnCooldown <= 0){
       spawnObstacle();
@@ -134,7 +150,7 @@
       PLAYER.y += PLAYER.vy * dts;
       if (PLAYER.y >= GROUND_Y - PLAYER.h){ PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true; }
     } else if (PLAYER.duck){
-      PLAYER.h = 32; PLAYER.y = GROUND_Y - PLAYER.h;
+      PLAYER.h = 32; PLAYER.y = GROUND_Y - PLAYER.h; // slide crouch height
     } else { PLAYER.h = 40; PLAYER.y = GROUND_Y - PLAYER.h; }
 
     // Obstacles
@@ -160,27 +176,14 @@
   }
 
   // ---------- Obstacles ----------
-    // ---- Sprite helper + squirrel sheet ----
-function drawSprite(ctx, img, fw, fh, frame, x, y, w, h) {
-  const cols = Math.max(1, Math.floor(img.width / fw));
-  const sx = (frame % cols) * fw;
-  const sy = Math.floor(frame / cols) * fh;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, sx, sy, fw, fh, x, y, w, h);
-}
-
-const SQUIRREL_SPRITE = { img: new Image(), fw: 64, fh: 64, frames: 3, ready: false };
-SQUIRREL_SPRITE.img.src = 'img/squirrel.png';   // <-- your chosen path
-SQUIRREL_SPRITE.img.onload = () => SQUIRREL_SPRITE.ready = true;
-
   function spawnObstacle(){
-  let type = 0; // plate by default early
-  if (STATE.score > 180){
-    const squirrelChance = STATE.score > 500 ? 0.45 : 0.25;   // like dino birds later
-    type = Math.random() < squirrelChance ? 1 : 0;
+    let type = 0; // plate by default early
+    if (STATE.score > 180){
+      const squirrelChance = STATE.score > 500 ? 0.45 : 0.25;
+      type = Math.random() < squirrelChance ? 1 : 0;
+    }
+    obstacles.push(type === 0 ? Plate() : Squirrel());
   }
-  obstacles.push(type === 0 ? Plate() : Squirrel());
-}
   function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
   function currentGapMax(){ return STATE.score < 150 ? 1500 : STATE.score < 350 ? 1300 : STATE.score < 700 ? 1100 : 950; }
 
@@ -201,39 +204,33 @@ SQUIRREL_SPRITE.img.onload = () => SQUIRREL_SPRITE.ready = true;
   }
 
   function Squirrel(){
-  // mid / high “lanes”, with gentle glide
-  const lanes = [GROUND_Y - 100, GROUND_Y - 140];
-  const baseY = lanes[Math.floor(Math.random() * lanes.length)];
-  const amp = 10 + Math.random() * 10;            // vertical glide amplitude
-  const period = 1000 + Math.random() * 500;      // glide period (ms)
-  const born = performance.now();
-
-  const w = 48, h = 36;                            // render size on canvas
-  let animFrame = 0;
-
-  return {
-    type: 'squirrel', x: W + 10, y: baseY, w, h,
-    box(){ const p = 6; return { x: this.x + p, y: this.y + p, w: this.w - 2*p, h: this.h - 2*p }; },
-    draw(){
-      // glide path
-      const t = (performance.now() - born) / period;
-      this.y = baseY + Math.sin(t * Math.PI * 2) * amp;
-
-      // flap animation @ ~8 fps
-      if (SQUIRREL_SPRITE.ready){
-        animFrame = Math.floor((performance.now() / 1000) * 8) % SQUIRREL_SPRITE.frames;
-        drawSprite(ctx, SQUIRREL_SPRITE.img, SQUIRREL_SPRITE.fw, SQUIRREL_SPRITE.fh, animFrame, this.x, this.y, this.w, this.h);
-      } else {
-        // fallback: tiny pixel squirrel with red “devil” wings
-        ctx.fillStyle = '#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4); // shadow
-        ctx.fillStyle = '#111';     ctx.fillRect(this.x + 6, this.y + 8, this.w - 12, this.h - 12); // body
-        ctx.fillStyle = '#700';     ctx.fillRect(this.x + 2, this.y + 6, 12, 6); ctx.fillRect(this.x + this.w - 14, this.y + 6, 12, 6); // wings
-        ctx.fillStyle = '#111';     ctx.fillRect(this.x + this.w - 10, this.y + 8, 8, 6); // head
+    const lanes = [GROUND_Y - 100, GROUND_Y - 140];
+    const baseY = lanes[Math.floor(Math.random()*lanes.length)];
+    const amp = 10 + Math.random()*10;               // vertical bob
+    const period = 1000 + Math.random()*500;         // ms
+    const born = performance.now();
+    const w = 48, h = 36;
+    return {
+      type:'squirrel', x: W+10, y: baseY, w, h,
+      box(){ const p=6; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },
+      draw(){
+        const t = (performance.now() - born) / period;
+        const bob = Math.sin(t * Math.PI * 2) * amp;
+        const tilt = Math.sin(t * Math.PI * 2) * 0.12; // ~7º each way
+        this.y = baseY + bob;
+        if (SQUIRREL.ready){
+          drawSprite(ctx, SQUIRREL.img, SQUIRREL.fw, SQUIRREL.fh, 0, this.x, this.y, this.w, this.h, tilt);
+        } else {
+          // fallback blob
+          ctx.fillStyle = '#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4);
+          ctx.fillStyle = '#111';     ctx.fillRect(this.x + 6, this.y + 8, this.w - 12, this.h - 12);
+          ctx.fillStyle = '#700';     ctx.fillRect(this.x + 2, this.y + 6, 12, 6);
+          ctx.fillStyle = '#700';     ctx.fillRect(this.x + this.w - 14, this.y + 6, 12, 6);
+          ctx.fillStyle = '#111';     ctx.fillRect(this.x + this.w - 10, this.y + 8, 8, 6);
+        }
       }
-    }
-  };
-}
-
+    };
+  }
 
   // ---------- Collision ----------
   const playerBox = () => { const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
@@ -266,13 +263,28 @@ SQUIRREL_SPRITE.img.onload = () => SQUIRREL_SPRITE.ready = true;
   }
 
   function drawPlayer(){
-    // placeholder pixel Bean (body/head/ears/collar)
-    ctx.fillStyle = '#1b1b1b'; ctx.fillRect(PLAYER.x, PLAYER.y+PLAYER.h-6, PLAYER.w, 6); // shadow
-    ctx.fillStyle = '#5a3d2e'; ctx.fillRect(PLAYER.x+6, PLAYER.y+8, PLAYER.w-12, PLAYER.h-12); // body
-    ctx.fillRect(PLAYER.x+PLAYER.w-24, PLAYER.y, 20, 16); // head
-    ctx.fillStyle = '#3d281f'; ctx.fillRect(PLAYER.x+PLAYER.w-12, PLAYER.y-4, 4, 6); ctx.fillRect(PLAYER.x+PLAYER.w-18, PLAYER.y-4, 4, 6); // ears
-    ctx.fillStyle = '#2a58b0'; ctx.fillRect(PLAYER.x+8, PLAYER.y+14, PLAYER.w-26, 3); // collar
-    ctx.fillStyle = '#5a3d2e'; ctx.fillRect(PLAYER.x+2, PLAYER.y+16, 6, 4); // tail
+    // Choose sheet based on state
+    let sheet = BEAN.run; // default run
+    if (!PLAYER.onGround) sheet = BEAN.jump;
+    else if (PLAYER.duck) sheet = BEAN.slide;
+
+    // Animate run; others hold frame 0
+    if (sheet === BEAN.run) {
+      PLAYER.animTime += 1/60; // approx; visual only
+      PLAYER.frame = Math.floor(PLAYER.animTime * sheet.fps) % sheet.frames;
+    } else {
+      PLAYER.frame = 0;
+    }
+
+    if (sheet.ready) {
+      drawSprite(ctx, sheet.img, sheet.fw, sheet.fh, PLAYER.frame, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
+    } else {
+      // fallback placeholder Bean box
+      ctx.fillStyle = '#1b1b1b'; ctx.fillRect(PLAYER.x, PLAYER.y+PLAYER.h-6, PLAYER.w, 6);
+      ctx.fillStyle = '#5a3d2e'; ctx.fillRect(PLAYER.x+6, PLAYER.y+8, PLAYER.w-12, PLAYER.h-12);
+      ctx.fillStyle = '#3d281f'; ctx.fillRect(PLAYER.x+PLAYER.w-12, PLAYER.y-4, 4, 6); ctx.fillRect(PLAYER.x+PLAYER.w-18, PLAYER.y-4, 4, 6);
+      ctx.fillStyle = '#2a58b0'; ctx.fillRect(PLAYER.x+8, PLAYER.y+14, PLAYER.w-26, 3);
+    }
   }
 
   // Utilities
