@@ -6,41 +6,34 @@
   <title>Bean Run</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Page-scoped styles to avoid bleeding into the rest of the site */
-    .game-page { display:flex; flex-direction:column; align-items:center; padding: 2rem 1rem 3rem; }
-    .game-wrap { position: relative; width: 100%; max-width: 960px; aspect-ratio: 3 / 1; background:#111; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.35); overflow:hidden; }
-    .hud { position:absolute; inset:0; pointer-events:none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee; }
-    .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; letter-spacing: .5px; }
-    .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
-    .center-message { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; }
-    .center-message .card { background: rgba(0,0,0,.55); color:#eee; padding: 14px 18px; border-radius: 8px; backdrop-filter: blur(3px); border:1px solid #ffffff18; }
-    .controls-hint { font-size:.9rem; opacity:.9; margin-top:.4rem; }
-    .btn { pointer-events:auto; cursor:pointer; background:#111; color:#fff; border:1px solid #fff2; padding:.5rem .75rem; border-radius:6px; font-weight:700; }
-
-    /* Pixel-art crispness for the canvas */
-    canvas { width:100%; height:100%; image-rendering: pixelated; image-rendering: crisp-edges; display:block; }
-    /* Prevent page from scrolling during gameplay/start screen */
-    html, body { height: 100%; }
+    /* Page‑scoped styles only */
     body.game-page { overflow: hidden; }
+    .game-section { max-width: 980px; margin: 2rem auto 3rem; padding: 0 1rem; }
+    .game-wrap { position: relative; width: 100%; max-width: 960px; aspect-ratio: 3 / 1; margin: 1rem auto; border-radius: 10px; overflow: hidden; box-shadow: 0 12px 28px rgba(0,0,0,.35); background:#111; }
+    canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+    .hud { position:absolute; inset:0; pointer-events:none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee; }
+    .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
+    .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; }
+    .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+    .card { background:rgba(0,0,0,.6); color:#eee; border:1px solid #ffffff1a; border-radius:10px; padding:14px 18px; text-align:center; }
+    .sub { font-size:.92rem; opacity:.9; }
   </style>
 </head>
 <body class="game-page">
-  <main class="content-box" style="max-width: 980px; width:100%">
-    <h1 class="section-title">Bean Run</h1>
-    <p class="reverent-text" style="margin-bottom: 1rem;">Help Bean run home to Josh!</p>
+
+  <main class="game-section content-box">
+    <h1 class="section-title">BEAN RUN</h1>
+    <p class="reverent-text">Help Bean run home to Josh!</p>
 
     <div class="game-wrap">
-      <canvas id="game" tabindex="0" width="960" height="320" aria-label="Josh's Gym Runner"></canvas>
-      <div class="hud" aria-live="polite">
+      <canvas id="game" width="960" height="320" tabindex="0" aria-label="Bean Run"></canvas>
+      <div class="hud">
         <div class="hi" id="hi">HI 00000</div>
         <div class="score" id="score">00000</div>
-        <div class="center-message" id="center">
+        <div class="center" id="center">
           <div class="card">
-            <div style="font-weight:700; margin-bottom:.25rem">Help Bean survive the outdoor gym</div>
-            <div class="controls-hint">Jump: Space / ▲ · Duck: ▼ · Pause: P</div>
-            <div class="controls-hint" style="opacity:.8; margin-top:.25rem;">Press Space / Tap to begin</div>
-          </div>
-            <div class="controls-hint">Jump: Space / ▲ · Duck: ▼ · Pause: P</div>
+            <div style="font-weight:700">Press Space / Tap to begin</div>
+            <div class="sub">Jump: Space / ▲ &nbsp;•&nbsp; Duck: ▼ &nbsp;•&nbsp; Pause: P</div>
           </div>
         </div>
       </div>
@@ -48,516 +41,217 @@
   </main>
 
   <script>
-  // ===== Josh's Gym Runner (bare-bones) =====
-  // Spec choices from user (updated):
-  // - Outdoor gym with power racks (foreground) + mountains (background)
-  // - PLAYABLE CHARACTER: 8‑bit Bean (dog). Final art will be 16-bit shaded/pixel style; v1 uses a placeholder pixel Bean
-  // - Obstacles: ground 45lb plates (rolling) + air triceps rope (sweeping)
-  // - No power-ups, no SFX, no accessibility/easter eggs
-  // - Show score + session-based high score
-  // - Place as top-level page; navbar link will be added separately
+  // ===== Bean Run — minimal, stable build =====
+  // Theme: outdoor gym (mountains bg + power racks fg); obstacles: 45lb plate (ground) + triceps rope (air)
+  // No power-ups/SFX. Score + session high score only.
 
-  // Canvas & scaling
+  // Canvas
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  const W = canvas.width;   // 960
-  const H = canvas.height;  // 320
-
-  // Game state
-  const STATE = {
-    running: false,
-    paused: false,
-    over: false,
-    started: false,
-    time: 0,
-    lastTime: 0,
-    delta: 0,
-    speed: 6,           // px/frame baseline (tuned by delta)
-    gravity: 1.05,       // jump feel
-    score: 0,
-    hi: Number(sessionStorage.getItem('jd_hi') || 0),
-  };
-
-  // World config
-  const GROUND_Y = H - 48;      // baseline ground
-  const GROUND_H = 20;          // belt thickness
-  const PLAYER = {
-    x: 80,
-    y: GROUND_Y - 40,
-    w: 44,
-    h: 40,
-    vy: 0,
-    ducking: false,
-    onGround: true,
-    animTime: 0,
-    frame: 0,
-    spriteReady: false,
-  };
-
-  // Obstacle pools
-  const obstacles = [];
-  let spawnCooldown = 800; // ms until next obstacle
-  let spawnGapMin = 900;   // start gentle
-  let spawnGapMax = 1500;  // start gentle
-
-  // Input
-  const keys = new Set();
-  let touchActive = false;
-  let touchStartY = 0;
+  const W = canvas.width, H = canvas.height;
 
   // HUD
   const scoreEl = document.getElementById('score');
   const hiEl = document.getElementById('hi');
   const centerEl = document.getElementById('center');
+  const fmt = n => n.toString().padStart(5,'0');
 
-  function fmt(n){ return n.toString().padStart(5,'0'); }
-  function updateHUD(){
+  // State
+  const STATE = {
+    started:false, running:false, paused:false, over:false,
+    last:0, speed:6,
+    score:0, hi: Number(sessionStorage.getItem('bean_hi') || 0),
+    gravity: 1.05
+  };
+
+  // World
+  const GROUND_Y = H - 48, GROUND_H = 20;
+  const PLAYER = { x:80, y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true };
+  const obstacles = [];
+  let spawnCooldown = 900; // ms until next obstacle
+
+  // ---------- Input (simple & reliable) ----------
+  function startGame(){
+    STATE.started = true; STATE.running = true; STATE.over = false; STATE.paused = false;
+    STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnCooldown = 900;
+    PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true; PLAYER.duck = false;
+    centerEl.style.display = 'none';
+    STATE.last = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  function startIfReady(){ if (!STATE.started || STATE.over) startGame(); }
+
+  function jump(){
+    if (!STATE.running || STATE.paused || STATE.over) return;
+    if (PLAYER.onGround){ PLAYER.vy = -10.2; PLAYER.onGround = false; PLAYER.duck = false; }
+  }
+  function setDuck(d){ if (!STATE.running || STATE.paused || STATE.over) return; PLAYER.duck = !!d; }
+  function togglePause(){ if (!STATE.started || STATE.over) return; STATE.paused = !STATE.paused; centerEl.style.display = STATE.paused ? 'flex' : 'none'; }
+
+  window.addEventListener('keydown', (e)=>{
+    if (e.code==='Space' || e.code==='ArrowUp') { e.preventDefault(); if (!STATE.started || STATE.over) startGame(); else jump(); }
+    if (e.code==='ArrowDown') setDuck(true);
+    if (e.code==='KeyP' || e.code==='Escape') togglePause();
+  });
+  window.addEventListener('keyup', (e)=>{ if (e.code==='ArrowDown') setDuck(false); });
+
+  canvas.addEventListener('click', (e)=>{ e.preventDefault(); startIfReady(); });
+  canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); startIfReady(); }, {passive:false});
+
+  document.addEventListener('DOMContentLoaded', ()=>{ try{ canvas.focus(); }catch{} });
+
+  // ---------- Loop ----------
+  function loop(now){
+    if (!STATE.running) return;
+    const dt = Math.min(32, now - STATE.last); // ms
+    const dts = dt / (1000/60);
+    STATE.last = now;
+
+    if (!STATE.paused){
+      update(dts, dt);
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function update(dts, dt){
+    // Speed ramp (gentle → stronger as score rises)
+    if (STATE.score < 300) STATE.speed += 0.0005 * dts;
+    else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
+    else STATE.speed += 0.0011 * dts;
+
+    // Spawn difficulty like Chrome dino
+    spawnCooldown -= dt;
+    if (spawnCooldown <= 0){
+      spawnObstacle();
+      spawnCooldown = rand(currentGapMin(), currentGapMax());
+    }
+
+    // Player physics
+    if (!PLAYER.onGround){
+      PLAYER.vy += STATE.gravity * dts * 0.5;
+      PLAYER.y += PLAYER.vy * dts;
+      if (PLAYER.y >= GROUND_Y - PLAYER.h){ PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true; }
+    } else if (PLAYER.duck){
+      PLAYER.h = 32; PLAYER.y = GROUND_Y - PLAYER.h;
+    } else { PLAYER.h = 40; PLAYER.y = GROUND_Y - PLAYER.h; }
+
+    // Obstacles
+    for (let i = obstacles.length - 1; i >= 0; i--){
+      const o = obstacles[i];
+      o.x -= STATE.speed * dts;
+      if (o.x + o.w < -10) { obstacles.splice(i,1); continue; }
+      if (hit(playerBox(), o.box())) { return gameOver(); }
+    }
+
+    STATE.score += 0.35 * dts;
     scoreEl.textContent = fmt(Math.floor(STATE.score));
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
-  // ---------- Input handling ----------
-  function jump(){
-    if (!STATE.running || STATE.paused || STATE.over) return;
-    if (PLAYER.onGround){
-      PLAYER.vy = -10.2; // jump impulse
-      PLAYER.onGround = false;
-      PLAYER.ducking = false;
-    }
-  }
-  function duck(down){
-    if (!STATE.running || STATE.paused || STATE.over) return;
-    if (down && PLAYER.onGround){ PLAYER.ducking = true; }
-    else { PLAYER.ducking = false; }
-  }
-  function pauseToggle(){
-    if (!STATE.started || STATE.over) return;
-    STATE.paused = !STATE.paused;
-    centerEl.style.display = STATE.paused ? 'flex' : 'none';
-    if (STATE.paused){
-      centerEl.querySelector('.card').innerHTML = '<div style="font-weight:700; margin-bottom:.25rem">Paused</div><div class="controls-hint">Press P to Resume</div>';
-    }
-  }
-
-  function handleKeyDown(e){
-    const isStartKey = (e.code==='Space' || e.code==='ArrowUp' || e.key===' ' || e.key==='Spacebar');
-    if ((!STATE.started || STATE.over) && isStartKey){ e.preventDefault(); startGame(); return; }
-    if (isStartKey){ e.preventDefault(); jump(); }
-    if (e.code==='ArrowDown') duck(true);
-    if (e.code==='KeyP' || e.code==='Escape') pauseToggle();
-  }
-  function handleKeyUp(e){
-    if (e.code==='ArrowDown') duck(false);
-  }
-  // Attach to both window and document for maximum reliability
-  function preventScrollKeys(e){
-    const active = document.activeElement;
-    const typing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
-    if (typing) return;
-    const code = e.code || '';
-    const isScrollKey = code === 'Space' || code === 'ArrowUp' || code === 'ArrowDown' || e.key === ' ';
-    if (isScrollKey){ e.preventDefault(); }
-  }
-  window.addEventListener('keydown', preventScrollKeys, {capture:true});
-  document.addEventListener('keydown', preventScrollKeys, {capture:true});
-
-  window.addEventListener('keydown', handleKeyDown);
-  window.addEventListener('keyup', handleKeyUp);
-  document.addEventListener('keydown', handleKeyDown, {capture:true});
-  document.addEventListener('keyup', handleKeyUp, {capture:true});
-  // Older browsers sometimes only fire keypress for space
-  document.addEventListener('keypress', (e)=>{
-    const active = document.activeElement;
-    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
-    if ((!STATE.started || STATE.over) && (e.key === ' ' || e.code === 'Space')){ e.preventDefault(); startGame(); }
-  }, {capture:true});
-  window.addEventListener('keyup', handleKeyUp);
-  document.addEventListener('keydown', handleKeyDown, {capture:true});
-  document.addEventListener('keyup', handleKeyUp, {capture:true});
-  // Older browsers sometimes only fire keypress for space
-  document.addEventListener('keypress', (e)=>{
-    if ((!STATE.started || STATE.over) && (e.key===' ' || e.code==='Space')){ e.preventDefault(); startGame(); }
-  }, {capture:true});
-    if (e.code==='ArrowDown') duck(false);
-  });
-    if (e.code==='ArrowDown') duck(false);
-  });
-
-  // Touch: tap = jump; hold = duck
-  canvas.addEventListener('touchstart', (e)=>{
-    e.preventDefault();
-    const t = e.changedTouches[0];
-    touchActive = true; touchStartY = t.clientY;
-    if (!STATE.started) startGame();
-    jump();
-  }, {passive:false});
-  canvas.addEventListener('touchmove', (e)=>{
-    e.preventDefault();
-    if (!touchActive) return;
-    const t = e.changedTouches[0];
-    const dy = t.clientY - touchStartY;
-    duck(dy > 20);
-  }, {passive:false});
-  canvas.addEventListener('touchend', (e)=>{
-    e.preventDefault();
-    touchActive = false; duck(false);
-  }, {passive:false});
-
-  // ---------- Game loop ----------
-  function startGame(){
-    STATE.started = true; STATE.running = true; STATE.over = false; STATE.paused = false;
-    STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnTimer = 0; PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true; PLAYER.ducking = false;
-    centerEl.style.display = 'none';
-    STATE.lastTime = performance.now();
-    requestAnimationFrame(tick);
-  }
-
   function gameOver(){
-    STATE.over = true; STATE.running = false;
-    // Update session high score
+    STATE.running = false; STATE.over = true;
     const s = Math.floor(STATE.score);
-    if (s > STATE.hi){ STATE.hi = s; sessionStorage.setItem('jd_hi', String(s)); }
-    updateHUD();
+    if (s > STATE.hi){ STATE.hi = s; sessionStorage.setItem('bean_hi', String(s)); }
+    scoreEl.textContent = fmt(s); hiEl.textContent = 'HI ' + fmt(STATE.hi);
     centerEl.style.display = 'flex';
-    centerEl.querySelector('.card').innerHTML = `<div style="font-weight:700; margin-bottom:.25rem">Game Over</div><div>Score: ${fmt(s)}</div><div class="controls-hint" style="margin-top:.25rem">Press Space / Tap to retry</div>`;
+    centerEl.querySelector('.card').innerHTML = `<div style="font-weight:700">Game Over</div><div>Score: ${fmt(s)}</div><div class="sub" style="margin-top:.25rem">Press Space / Tap to retry</div>`;
   }
 
-  function tick(now){
-    if (!STATE.running){ return; }
-    STATE.delta = Math.min(32, now - STATE.lastTime); // ms, clamp to avoid big jumps
-    STATE.lastTime = now;
-    if (!STATE.paused){
-      update(STATE.delta);
-      draw();
-    }
-    requestAnimationFrame(tick);
-  }
-
-  function update(dt){
-    const dts = dt / (1000/60); // normalize vs 60fps
-
-    // Speed ramp: small increase over time
-    // Speed ramp: gentle at first, increases later
-    if (STATE.score < 300) STATE.speed += 0.0005 * dts;
-    else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
-    else STATE.speed += 0.0011 * dts; // gentle ramp
-
-    // Spawn logic
-    // Obstacle spawn progression like Chrome dino (starts easy → harder)
-    spawnCooldown -= dt;
-    if (spawnCooldown <= 0){
-      spawnObstacle();
-      // Reset cooldown based on current difficulty window
-      const gap = rand(spawnGapMin, spawnGapMax);
-      spawnCooldown = gap;
-    }
-
-    // Dynamic difficulty tuning based on score (progressive tightening)
-    if (STATE.score < 150){
-      spawnGapMin = 900; spawnGapMax = 1500; // very chill
-    } else if (STATE.score < 350){
-      spawnGapMin = 750; spawnGapMax = 1300;
-    } else if (STATE.score < 700){
-      spawnGapMin = 600; spawnGapMax = 1100;
-    } else {
-      spawnGapMin = 480; spawnGapMax = 950;
-    }
-
-    // Update player physics
-    if (!PLAYER.onGround){
-      PLAYER.vy += STATE.gravity * dts * 0.5; // gravity step
-      PLAYER.y += PLAYER.vy * dts;
-      if (PLAYER.y >= GROUND_Y - PLAYER.h){
-        PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true;
-      }
-    } else if (PLAYER.ducking){
-      PLAYER.h = 32; // crouch height
-      PLAYER.y = GROUND_Y - PLAYER.h;
-    } else {
-      PLAYER.h = 48; // stand height
-      PLAYER.y = GROUND_Y - PLAYER.h;
-    }
-
-    // Update obstacles & collisions
-    for (let i = obstacles.length - 1; i >= 0; i--){
-      const o = obstacles[i];
-      o.x -= STATE.speed * dts;
-      if (o.x + o.w < -10){ obstacles.splice(i,1); continue; }
-      if (intersectAABB(playerHitbox(), o.hitbox())){ gameOver(); return; }
-    }
-
-    // Score
-    STATE.score += 0.35 * dts; // tuned feel
-    updateHUD();
-  }
-
-  // ---------- Entities ----------
+  // ---------- Obstacles ----------
   function spawnObstacle(){
-    // Early game favors ground plates; ropes appear later like dino’s pterodactyls
-    let type = 0; // plate by default
-    if (STATE.score > 180){
-      // mix in ropes gradually
+    let type = 0; // plate by default early
+    if (STATE.score > 180){ // ropes later like dino birds
       const ropeChance = STATE.score > 500 ? 0.45 : 0.25;
       type = Math.random() < ropeChance ? 1 : 0;
     }
-    if (type === 0){
-      obstacles.push(PlateObstacle());
-    } else {
-      obstacles.push(RopeObstacle());
-    }
-  } else {
-      obstacles.push(RopeObstacle());
-    }
+    obstacles.push(type === 0 ? Plate() : Rope());
   }
+  function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
+  function currentGapMax(){ return STATE.score < 150 ? 1500 : STATE.score < 350 ? 1300 : STATE.score < 700 ? 1100 : 950; }
 
-  function PlateObstacle(){
-    // 45lb plate approximated as a circle rolling along ground
-    const size = 34; // visual diameter
-    const y = GROUND_Y - size + 6; // slight sink into ground for look
-    const spin = Math.random() * Math.PI;
+  function Plate(){
+    const size = 34, y = GROUND_Y - size + 6; let spin = Math.random()*Math.PI;
     return {
-      type: 'plate',
-      x: W + 10,
-      y,
-      w: size,
-      h: size,
-      spin,
-      hitbox(){ // slightly forgiving AABB
-        const pad = 6; return { x:this.x+pad, y:this.y+pad, w:this.w-2*pad, h:this.h-2*pad };
-      },
-      draw(ctx){
+      type:'plate', x: W+10, y, w:size, h:size,
+      box(){ const p=6; return {x:this.x+p,y:this.y+p,w:this.w-2*p,h:this.h-2*p}; },
+      draw(){
         const cx = this.x + this.w/2, cy = this.y + this.h/2;
-        ctx.save();
-        ctx.translate(cx, cy);
-        this.spin += 0.18; ctx.rotate(this.spin);
-        // Rim
-        ctx.fillStyle = '#2a2a2a';
-        ctx.beginPath(); ctx.arc(0,0,this.w*0.5,0,Math.PI*2); ctx.fill();
-        // Inner ring
-        ctx.fillStyle = '#3d3d3d';
-        ctx.beginPath(); ctx.arc(0,0,this.w*0.33,0,Math.PI*2); ctx.fill();
-        // Hub hole
-        ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.arc(0,0,this.w*0.09,0,Math.PI*2); ctx.fill();
+        ctx.save(); ctx.translate(cx,cy); spin += 0.18; ctx.rotate(spin);
+        ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(0,0,this.w*0.5,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#3d3d3d'; ctx.beginPath(); ctx.arc(0,0,this.w*0.33,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,this.w*0.09,0,Math.PI*2); ctx.fill();
         ctx.restore();
       }
     };
   }
 
-  function RopeObstacle(){
-    // Hanging triceps rope sweeping horizontally at mid/high lanes
+  function Rope(){
     const lanes = [GROUND_Y - 90, GROUND_Y - 130];
     const baseY = lanes[Math.floor(Math.random()*lanes.length)];
-    const amp = 16 + Math.random()*10; // swing amplitude
-    const period = 1300 + Math.random()*600; // ms
-    const born = performance.now();
+    const amp = 16 + Math.random()*10; const period = 1300 + Math.random()*600; const born = performance.now();
     const w = 18, h = 60;
     return {
-      type: 'rope',
-      x: W + 10,
-      y: baseY,
-      w, h,
-      hitbox(){ const pad = 4; return { x:this.x+pad, y:this.y+pad, w:this.w-2*pad, h:this.h-2*pad }; },
-      draw(ctx){
-        // draw a braided rope with a simple pattern and end knobs
-        const t = (performance.now() - born) / period;
-        const sway = Math.sin(t * Math.PI * 2) * amp; // horizontal sway
-        const x = this.x + sway;
-        // strap
-        ctx.fillStyle = '#222';
-        ctx.fillRect(x + w*0.45, this.y - 20, 2, 20);
-        // rope body
-        for (let i=0;i<this.h;i+=6){
-          ctx.fillStyle = i % 12 === 0 ? '#5a5a5a' : '#6b6b6b';
-          ctx.fillRect(x, this.y + i, this.w, 4);
-        }
-        // end knobs
-        ctx.fillStyle = '#2b2b2b';
-        ctx.fillRect(x-2, this.y + this.h, this.w+4, 10);
-        // cache hitbox center offset for collision probe
-        this.hitbox = function(){ const pad=4; return { x:x+pad, y:this.y+pad, w:this.w-2*pad, h:this.h-2*pad }; };
+      type:'rope', x: W+10, y: baseY, w, h,
+      box(){ const t=(performance.now()-born)/period; const sway = Math.sin(t*Math.PI*2)*amp; const x = this.x + sway; return {x:x+4,y:this.y+4,w:this.w-8,h:this.h-8}; },
+      draw(){
+        const t=(performance.now()-born)/period; const sway = Math.sin(t*Math.PI*2)*amp; const x = this.x + sway;
+        ctx.fillStyle = '#222'; ctx.fillRect(x + w*0.45, this.y-20, 2, 20);
+        for (let i=0;i<this.h;i+=6){ ctx.fillStyle = i%12===0?'#5a5a5a':'#6b6b6b'; ctx.fillRect(x, this.y+i, this.w, 4); }
+        ctx.fillStyle = '#2b2b2b'; ctx.fillRect(x-2, this.y+this.h, this.w+4, 10);
       }
     };
   }
 
-  function playerHitbox(){
-    // Slight forgiveness
-    const pad = 6;
-    return { x: PLAYER.x+pad, y: PLAYER.y+pad, w: PLAYER.w-2*pad, h: PLAYER.h-2*pad };
-  }
+  // ---------- Collision ----------
+  const playerBox = () => { const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
+  const hit = (a,b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
-  function intersectAABB(a,b){
-    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-  }
-
-  function rand(min,max){ return Math.random()*(max-min)+min; }
-
-  // ---------- Sprites (optional; will gracefully fall back) ----------
-  const beanSprites = {
-    run: { image: new Image(), fw: 64, fh: 64, frames: 6, ready:false },
-    jump:{ image: new Image(), fw: 64, fh: 64, frames: 1, ready:false },
-    duck:{ image: new Image(), fw: 64, fh: 64, frames: 2, ready:false },
-  };
-  // If you later add PNGs at these paths, they will be used automatically
-  beanSprites.run.image.src = 'img/game/bean_run.png';
-  beanSprites.jump.image.src = 'img/game/bean_jump.png';
-  beanSprites.duck.image.src = 'img/game/bean_duck.png';
-  for (const key of Object.keys(beanSprites)){
-    beanSprites[key].image.onload = ()=> beanSprites[key].ready = true;
-    beanSprites[key].image.onerror = ()=>{}; // stay quiet if missing
-  }
-
-  function drawSprite(ctx, img, fw, fh, frameIndex, x, y, w, h){
-    const sx = (frameIndex % Math.floor(img.width/fw)) * fw;
-    const sy = Math.floor(frameIndex / Math.floor(img.width/fw)) * fh;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, sx, sy, fw, fh, x, y, w, h);
-  }
-
-  // ---------- Rendering ----------
+  // ---------- Render ----------
   function draw(){
     ctx.clearRect(0,0,W,H);
-    drawBackground(ctx);
-    drawGround(ctx);
-
-    // Player (box for v1)
-    drawPlayer(ctx);
-
-    // Obstacles
-    for (const o of obstacles){
-      if (o.draw) o.draw(ctx); else { ctx.fillStyle = '#c33'; ctx.fillRect(o.x,o.y,o.w,o.h); }
-    }
+    drawBackground();
+    drawGround();
+    drawPlayer();
+    for (const o of obstacles){ o.draw(); }
   }
 
-  function drawPlayer(ctx){
-    // Try to draw sprite if available, else draw a pixel-art placeholder Bean
-    if (beanSprites.run && beanSprites.run.ready){
-      const sheet = PLAYER.ducking && beanSprites.duck.ready ? beanSprites.duck : (PLAYER.onGround ? beanSprites.run : beanSprites.jump);
-      PLAYER.animTime += 0.016;
-      const fps = PLAYER.onGround ? 10 : 1;
-      if (PLAYER.onGround){ PLAYER.frame = Math.floor(PLAYER.animTime*fps) % sheet.frames; } else { PLAYER.frame = 0; }
-      drawSprite(ctx, sheet.image, sheet.fw, sheet.fh, PLAYER.frame, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
-    } else {
-      // Placeholder: chonky pixel Bean silhouette with ear triangles and tail
-      ctx.fillStyle = '#1b1b1b';
-      ctx.fillRect(PLAYER.x, PLAYER.y+PLAYER.h-6, PLAYER.w, 6); // little shadow
-      // body
-      ctx.fillStyle = '#5a3d2e';
-      ctx.fillRect(PLAYER.x+6, PLAYER.y+8, PLAYER.w-12, PLAYER.h-12);
-      // head
-      ctx.fillRect(PLAYER.x+PLAYER.w-24, PLAYER.y, 20, 16);
-      // ears
-      ctx.fillStyle = '#3d281f';
-      ctx.fillRect(PLAYER.x+PLAYER.w-12, PLAYER.y-4, 4, 6);
-      ctx.fillRect(PLAYER.x+PLAYER.w-18, PLAYER.y-4, 4, 6);
-      // collar
-      ctx.fillStyle = '#2a58b0';
-      ctx.fillRect(PLAYER.x+8, PLAYER.y+14, PLAYER.w-26, 3);
-      // tail
-      ctx.fillStyle = '#5a3d2e';
-      ctx.fillRect(PLAYER.x+2, PLAYER.y+16, 6, 4);
-    }
-  }
-
-  function drawGround(ctx){(ctx){
-    // Rubber gym flooring belt
-    ctx.fillStyle = '#2b2b2b';
-    ctx.fillRect(0, GROUND_Y, W, GROUND_H);
-
-    // Subtle belt movement markers
-    ctx.fillStyle = '#1f1f1f';
-    const segW = 24; const offset = Math.floor((performance.now()/30) % segW);
-    for (let x=-offset; x<W; x+=segW){
-      ctx.fillRect(x, GROUND_Y+GROUND_H-6, 12, 3);
-    }
-
-    // Power racks (foreground elements that scroll slower than obstacles but faster than mountains)
-    drawRacks(ctx);
-  }
-
-  function drawRacks(ctx){
-    const rackSpacing = 200; // pixels between rack uprights groups
-    const speed = STATE.speed * 0.6; // parallax-ish
-    const base = GROUND_Y - 100;
-    const now = performance.now();
-    const scroll = (now/16 * speed) % rackSpacing;
-    ctx.strokeStyle = '#3c3c3c';
-    ctx.lineWidth = 3;
-    for (let x = -scroll; x < W + rackSpacing; x += rackSpacing){
-      // two uprights
-      ctx.beginPath();
-      ctx.moveTo(x+20, base); ctx.lineTo(x+20, GROUND_Y);
-      ctx.moveTo(x+60, base); ctx.lineTo(x+60, GROUND_Y);
-      ctx.stroke();
-      // top crossbar
-      ctx.beginPath(); ctx.moveTo(x+20, base); ctx.lineTo(x+60, base); ctx.stroke();
-      // j-hooks
-      ctx.fillStyle = '#4a4a4a';
-      ctx.fillRect(x+18, base+20, 8, 4);
-      ctx.fillRect(x+58, base+36, 8, 4);
-    }
-  }
-
-  function drawBackground(ctx){
-    // Sky gradient
-    const sky = ctx.createLinearGradient(0,0,0,H);
-    sky.addColorStop(0,'#8fb8ff');
-    sky.addColorStop(1,'#d7ecff');
-    ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
-
-    // Distant mountains layer (slow parallax)
-    const speed = STATE.speed * 0.2;
-    const now = performance.now();
-    const scroll = (now/24 * speed) % W;
-
-    function mountain(x0, baseY, peakX, peakY, x1){
-      ctx.beginPath(); ctx.moveTo(x0, baseY); ctx.lineTo(peakX, peakY); ctx.lineTo(x1, baseY); ctx.closePath(); ctx.fill();
-    }
+  function drawBackground(){
+    // sky
+    const sky = ctx.createLinearGradient(0,0,0,H); sky.addColorStop(0,'#8fb8ff'); sky.addColorStop(1,'#d7ecff'); ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
+    // mountains parallax
+    const speed = STATE.speed*0.2, now = performance.now(); const s1 = (now/24*speed)%W; const s2 = (now/18*(STATE.speed*0.3))%W;
     ctx.fillStyle = '#6d7faa';
-    for (let i=-1; i<3; i++){
-      const base = i*W - scroll;
-      mountain(base+0, H-120, base+160, H-220, base+320);
-      mountain(base+240, H-110, base+380, H-190, base+520);
-      mountain(base+500, H-130, base+660, H-230, base+820);
-    }
-
-    // Mid mountains (slightly darker & faster)
-    const scroll2 = (now/18 * (STATE.speed*0.3)) % W;
+    for(let i=-1;i<3;i++){ const b=i*W-s1; mountain(b+0,H-120,b+160,H-220,b+320); mountain(b+240,H-110,b+380,H-190,b+520); mountain(b+500,H-130,b+660,H-230,b+820); }
     ctx.fillStyle = '#556791';
-    for (let i=-1; i<3; i++){
-      const base = i*W - scroll2;
-      mountain(base+80, H-90, base+210, H-170, base+340);
-      mountain(base+360, H-100, base+490, H-180, base+620);
-      mountain(base+620, H-95, base+750, H-165, base+880);
-    }
+    for(let i=-1;i<3;i++){ const b=i*W-s2; mountain(b+80,H-90,b+210,H-170,b+340); mountain(b+360,H-100,b+490,H-180,b+620); mountain(b+620,H-95,b+750,H-165,b+880); }
+  }
+  function mountain(x0,by,px,py,x1){ ctx.beginPath(); ctx.moveTo(x0,by); ctx.lineTo(px,py); ctx.lineTo(x1,by); ctx.closePath(); ctx.fill(); }
+
+  function drawGround(){
+    ctx.fillStyle = '#2b2b2b'; ctx.fillRect(0,GROUND_Y,W,GROUND_H);
+    ctx.fillStyle = '#1f1f1f'; const seg=24, off=Math.floor((performance.now()/30)%seg); for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
+    // power racks foreground
+    const rackSpacing=200, sp=STATE.speed*0.6, now=performance.now(), scroll=(now/16*sp)%rackSpacing; ctx.strokeStyle='#3c3c3c'; ctx.lineWidth=3;
+    for(let x=-scroll;x<W+rackSpacing;x+=rackSpacing){ ctx.beginPath(); ctx.moveTo(x+20,GROUND_Y-100); ctx.lineTo(x+20,GROUND_Y); ctx.moveTo(x+60,GROUND_Y-100); ctx.lineTo(x+60,GROUND_Y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x+20,GROUND_Y-100); ctx.lineTo(x+60,GROUND_Y-100); ctx.stroke(); ctx.fillStyle='#4a4a4a'; ctx.fillRect(x+18,GROUND_Y-80,8,4); ctx.fillRect(x+58,GROUND_Y-64,8,4); }
   }
 
-  // Initial HUD paint
-  updateHUD();
-
-  // Visibility pause (nice to have)
-  document.addEventListener('visibilitychange', ()=>{
-    if (document.hidden && STATE.started && !STATE.over){ STATE.paused = true; centerEl.style.display = 'flex'; centerEl.querySelector('.card').innerHTML = '<div style="font-weight:700; margin-bottom:.25rem">Paused</div><div class="controls-hint">Switch back to resume</div>'; }
-  });
-
-  // Start game on any pointer/tap/click (not just the canvas)
-  function startIfReady(e){
-    if (!STATE.started || STATE.over){ if (e) e.preventDefault(); startGame(); }
+  function drawPlayer(){
+    // placeholder pixel Bean (body/head/ears/collar)
+    ctx.fillStyle = '#1b1b1b'; ctx.fillRect(PLAYER.x, PLAYER.y+PLAYER.h-6, PLAYER.w, 6); // shadow
+    ctx.fillStyle = '#5a3d2e'; ctx.fillRect(PLAYER.x+6, PLAYER.y+8, PLAYER.w-12, PLAYER.h-12); // body
+    ctx.fillRect(PLAYER.x+PLAYER.w-24, PLAYER.y, 20, 16); // head
+    ctx.fillStyle = '#3d281f'; ctx.fillRect(PLAYER.x+PLAYER.w-12, PLAYER.y-4, 4, 6); ctx.fillRect(PLAYER.x+PLAYER.w-18, PLAYER.y-4, 4, 6); // ears
+    ctx.fillStyle = '#2a58b0'; ctx.fillRect(PLAYER.x+8, PLAYER.y+14, PLAYER.w-26, 3); // collar
+    ctx.fillStyle = '#5a3d2e'; ctx.fillRect(PLAYER.x+2, PLAYER.y+16, 6, 4); // tail
   }
-  canvas.addEventListener('click', startIfReady);
-  document.addEventListener('pointerdown', startIfReady, {passive:false, capture:true});
-  document.addEventListener('touchstart', startIfReady, {passive:false, capture:true}); }
-  });
 
-  // Navbar inject
-  fetch('navbar.html').then(r=>r.text()).then(html=>{
-    const nav = document.createElement('div');
-    nav.innerHTML = html; document.body.insertBefore(nav, document.body.firstChild);
-    // Focus the canvas so Space works without scrolling
-    setTimeout(()=>{ try{ canvas.focus(); }catch{} }, 0);
-  });
-  // Also focus on DOM ready in case navbar loads slowly
-  document.addEventListener('DOMContentLoaded', ()=>{ try{ canvas.focus(); }catch{} });
+  // Utilities
+  const rand = (min,max)=> Math.random()*(max-min)+min;
+
+  // Navbar inject (simple)
+  fetch('navbar.html').then(r=>r.text()).then(html=>{ const nav=document.createElement('div'); nav.innerHTML=html; document.body.insertBefore(nav, document.body.firstChild); });
   </script>
 </body>
 </html>
