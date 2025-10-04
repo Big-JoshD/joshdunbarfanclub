@@ -188,15 +188,18 @@
   }
 
   function Squirrel(){
-    const lanes = [GROUND_Y - 100, GROUND_Y - 140];
-    const baseY = lanes[Math.floor(Math.random()*lanes.length)];
-    const amp = 10 + Math.random()*10;               // vertical bob
-    const period = 1000 + Math.random()*500;         // ms
-    const born = performance.now();
-    const w = 48, h = 36;
+  // lower lanes so you must actually jump
+  const lanes = [GROUND_Y - 80, GROUND_Y - 120];  // was -100, -140
+  const baseY = lanes[Math.floor(Math.random()*lanes.length)];
+  const amp = 8 + Math.random()*8;               // slightly smaller bob so lows stay low
+  const period = 1000 + Math.random()*500;
+  const born = performance.now();
+
+  // render size a touch larger for fair collision
+  const w = 52, h = 40;                           // was 48,36
     return {
       type:'squirrel', x: W+10, y: baseY, w, h,
-      box(){ const p=6; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },
+      box(){ const p = 2; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },  // was p=6
       draw(){
         const t = (performance.now() - born) / period;
         const bob = Math.sin(t * Math.PI * 2) * amp;
