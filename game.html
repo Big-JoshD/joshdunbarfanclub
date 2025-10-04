@@ -80,6 +80,9 @@
   IMG.beanRun.src = 'img/bean_run.png';
   IMG.beanDuck.src = 'img/bean_duck.png';
   IMG.squirrel.src = 'img/squirrel.png';
+  IMG.swordSquirrel = new Image();
+  IMG.swordSquirrel.src = 'img/swordsquirrel.png';
+
 
   // ---------- Input ----------
   function startGame(){
@@ -161,31 +164,54 @@
 
   // ---------- Obstacles ----------
   function spawnObstacle(){
-    let type = 0; // plate by default early
-    if (STATE.score > 180){
-      const squirrelChance = STATE.score > 500 ? 0.45 : 0.25;
-      type = Math.random() < squirrelChance ? 1 : 0;
-    }
-    obstacles.push(type === 0 ? Plate() : Squirrel());
+  let type = 0; // sword-squirrel (ground) by default
+  if (STATE.score > 180){
+    const flyerChance = STATE.score > 500 ? 0.45 : 0.25; // flying squirrels appear later
+    type = Math.random() < flyerChance ? 1 : 0;
   }
+  obstacles.push(type === 0 ? SwordSquirrel() : Squirrel());
+}
   function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
   function currentGapMax(){ return STATE.score < 150 ? 1500 : STATE.score < 350 ? 1300 : STATE.score < 700 ? 1100 : 950; }
 
-  function Plate(){
-    const size = 34, y = GROUND_Y - size + 6; let spin = Math.random()*Math.PI;
-    return {
-      type:'plate', x: W+10, y, w:size, h:size,
-      box(){ const p=6; return {x:this.x+p,y:this.y+p,w:this.w-2*p,h:this.h-2*p}; },
-      draw(){
-        const cx = this.x + this.w/2, cy = this.y + this.h/2;
-        ctx.save(); ctx.translate(cx,cy); spin += 0.18; ctx.rotate(spin);
-        ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(0,0,this.w*0.5,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#3d3d3d'; ctx.beginPath(); ctx.arc(0,0,this.w*0.33,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,this.w*0.09,0,Math.PI*2); ctx.fill();
-        ctx.restore();
-      }
-    };
-  }
+  function SwordSquirrel(){
+  // Render the 64x64 sprite at ~70% so it sits nicely on the ground line
+  const SPRITE_W = 64, SPRITE_H = 64, SCALE = 0.70;
+  const w = Math.round(SPRITE_W * SCALE);
+  const h = Math.round(SPRITE_H * SCALE);
+  const y = GROUND_Y - h + 6; // slight sink to feel grounded
+
+  // Tight hitbox: trims sword glow/tail fluff so there’s no “air” collisions
+  const inset = {
+    left:  Math.round(w * 0.12),
+    right: Math.round(w * 0.10),
+    top:   Math.round(h * 0.14),
+    bot:   Math.round(h * 0.08),
+  };
+
+  return {
+    type: 'sword_squirrel',
+    x: W + 10, y, w, h,
+    box(){
+      return {
+        x: this.x + inset.left,
+        y: this.y + inset.top,
+        w: this.w - inset.left - inset.right,
+        h: this.h - inset.top - inset.bot
+      };
+    },
+    draw(){
+      // simple slide R → L (no bob, no tilt)
+      drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0);
+
+      // // Debug hitbox (optional)
+      // const b = this.box();
+      // ctx.strokeStyle = 'rgba(255,0,0,.5)';
+      // ctx.strokeRect(Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h));
+    }
+  };
+}
+
 
   function Squirrel(){
   // lower lanes so you must actually jump
