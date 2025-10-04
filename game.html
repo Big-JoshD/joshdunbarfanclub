@@ -23,7 +23,7 @@
 
   <main class="game-section content-box">
     <h1 class="section-title">BEAN RUN</h1>
-    <p class="reverent-text">Help Bean run home to Josh! Watch out for evil Squirrels!</p>
+    <p class="reverent-text">Help Bean sprint through the haunted forest — dodge the evil squirrels!</p>
 
     <div class="game-wrap">
       <canvas id="game" width="960" height="320" tabindex="0" aria-label="Bean Run"></canvas>
@@ -41,17 +41,16 @@
   </main>
 
   <script>
-  // ===== Bean Run — static sprite build =====
+  // ===== Bean Run — Forest Parallax Build =====
   // Bean:   img/bean_run.png (single frame) for run & jump
   // Duck:   img/bean_duck.png (single frame)
-  // Enemy:  img/squirrel.png (single frame) with vertical bob + slight tilt
+  // Enemy:  img/squirrel.png (flying, single frame) with vertical bob + slight tilt
+  // Ground: img/swordsquirrel.png (ground obstacle, slides R→L)
 
   // Canvas
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const BEAN_FOOT_SINK = 4; // try 4–6 if he still looks floaty // Helps seat Bean so his paws overlap the ground a few pixels
-
 
   // HUD
   const scoreEl = document.getElementById('score');
@@ -69,8 +68,10 @@
 
   // World
   const GROUND_Y = H - 48, GROUND_H = 20;
-  const PLAYER = { x:80, y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true };
+  const BEAN_FOOT_SINK = 4; // helps seat Bean a few px into the ground visually
   const groundTop = (h) => GROUND_Y - h + BEAN_FOOT_SINK;
+
+  const PLAYER = { x:80, y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
   const obstacles = [];
   let spawnCooldown = 900; // ms until next obstacle
 
@@ -78,14 +79,121 @@
   const IMG = {
     beanRun: new Image(),
     beanDuck: new Image(),
-    squirrel: new Image(),
+    squirrel: new Image(),      // flying enemy
+    swordSquirrel: new Image(), // ground enemy
   };
   IMG.beanRun.src = 'img/bean_run.png';
   IMG.beanDuck.src = 'img/bean_duck.png';
   IMG.squirrel.src = 'img/squirrel.png';
-  IMG.swordSquirrel = new Image();
   IMG.swordSquirrel.src = 'img/swordsquirrel.png';
 
+  // ---------- Forest Parallax Background ----------
+  const BG = makeForestBackground(W, H, GROUND_Y);
+
+  function makeForestBackground(W, H, groundY){
+    const layers = [
+      makeLayer(W, H, groundY, {speedMul:0.25, hue:'#243147', trunk:'#1a2333', scale:0.75, jitterY:6}),
+      makeLayer(W, H, groundY, {speedMul:0.45, hue:'#193a2f', trunk:'#11281f', scale:0.95, jitterY:8}),
+      makeLayer(W, H, groundY, {speedMul:0.75, hue:'#0f3d24', trunk:'#0b2a19', scale:1.15, jitterY:10}),
+    ];
+
+    let skyGrad; // built on first draw to use real canvas size
+    return {
+      update(dts, worldSpeed){
+        for(const L of layers){
+          L.offset -= worldSpeed * L.speedMul * dts;
+          if (L.offset <= -L.canvas.width) L.offset += L.canvas.width; // tile
+        }
+      },
+      draw(ctx){
+        // sky gradient
+        if (!skyGrad){
+          skyGrad = ctx.createLinearGradient(0,0,0,H);
+          skyGrad.addColorStop(0.00, '#0a0f1c');
+          skyGrad.addColorStop(0.45, '#13213a');
+          skyGrad.addColorStop(0.85, '#0b1a22');
+          skyGrad.addColorStop(1.00, '#0b1a22');
+        }
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0,0,W,H);
+
+        ctx.imageSmoothingEnabled = false;
+        for(const L of layers){
+          const x1 = Math.floor(L.offset);
+          const x2 = x1 + L.canvas.width;
+          ctx.drawImage(L.canvas, x1, 0);
+          ctx.drawImage(L.canvas, x2, 0);
+        }
+
+        // forest floor to blend with ground strip
+        ctx.fillStyle = '#0b1f13';
+        ctx.fillRect(0, groundY, W, H - groundY);
+      }
+    };
+
+    function makeLayer(W, H, groundY, opts){
+      const c = document.createElement('canvas');
+      const g = c.getContext('2d');
+      c.width = Math.max(W, 512);
+      c.height = H;
+
+      g.clearRect(0,0,c.width,c.height);
+
+      // repeating treeline clusters
+      const base = groundY;
+      const step = 26; // spacing between clusters
+      for (let x = -20; x < c.width + 40; x += step){
+        const s = opts.scale * (0.85 + Math.random()*0.3);
+        const y = base + Math.floor((Math.random()*opts.jitterY) - opts.jitterY*0.5);
+        const cluster = 2 + (Math.random() < 0.5 ? 1 : 0); // 2–3 trees per cluster
+        for (let i=0;i<cluster;i++){
+          drawPine(g,
+            Math.floor(x + (i-0.5)*8),
+            y,
+            Math.floor(34*s*(1 + i*0.05)),
+            opts.hue,
+            opts.trunk
+          );
+        }
+      }
+      return {canvas:c, offset:0, speedMul:opts.speedMul};
+    }
+
+    function drawPine(g, x, baseY, h, leafColor, trunkColor){
+      const w = Math.max(10, Math.floor(h*0.38));
+      const trunkW = Math.max(3, Math.floor(w*0.18));
+      const trunkH = Math.max(4, Math.floor(h*0.18));
+      const topY = baseY - h;
+
+      // canopy: stacked triangles
+      g.fillStyle = leafColor;
+      const tiers = 3;
+      for (let t=0; t<tiers; t++){
+        const ty = Math.floor(topY + (t/tiers)*h*0.75);
+        const tw = Math.floor(w - t*(w*0.22));
+        drawIsoTri(g, x, ty, tw, Math.floor(h*0.30));
+      }
+
+      // trunk
+      g.fillStyle = trunkColor;
+      g.fillRect(
+        Math.floor(x - trunkW/2),
+        Math.floor(baseY - trunkH),
+        trunkW,
+        trunkH
+      );
+    }
+
+    function drawIsoTri(g, cx, topY, baseW, h){
+      const half = Math.floor(baseW/2);
+      g.beginPath();
+      g.moveTo(Math.floor(cx), Math.floor(topY));
+      g.lineTo(Math.floor(cx - half), Math.floor(topY + h));
+      g.lineTo(Math.floor(cx + half), Math.floor(topY + h));
+      g.closePath();
+      g.fill();
+    }
+  }
 
   // ---------- Input ----------
   function startGame(){
@@ -127,6 +235,9 @@
     else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
     else STATE.speed += 0.0011 * dts;
 
+    // Background parallax
+    BG.update(dts, STATE.speed);
+
     // Spawn progression
     spawnCooldown -= dt;
     if (spawnCooldown <= 0){
@@ -135,21 +246,21 @@
     }
 
     // Player physics
-   if (!PLAYER.onGround){
-  PLAYER.vy += STATE.gravity * dts * 0.5;
-  PLAYER.y  += PLAYER.vy * dts;
-  if (PLAYER.y >= groundTop(PLAYER.h)) {
-    PLAYER.y = groundTop(PLAYER.h);
-    PLAYER.vy = 0;
-    PLAYER.onGround = true;
-  }
-} else if (PLAYER.duck){
-  PLAYER.h = 32;
-  PLAYER.y = groundTop(PLAYER.h); // seat duck pose
-} else {
-  PLAYER.h = 40;
-  PLAYER.y = groundTop(PLAYER.h); // seat stand pose
-}
+    if (!PLAYER.onGround){
+      PLAYER.vy += STATE.gravity * dts * 0.5;
+      PLAYER.y  += PLAYER.vy * dts;
+      if (PLAYER.y >= groundTop(PLAYER.h)) {
+        PLAYER.y = groundTop(PLAYER.h);
+        PLAYER.vy = 0;
+        PLAYER.onGround = true;
+      }
+    } else if (PLAYER.duck){
+      PLAYER.h = 32;
+      PLAYER.y = groundTop(PLAYER.h);
+    } else {
+      PLAYER.h = 40;
+      PLAYER.y = groundTop(PLAYER.h);
+    }
 
     // Obstacles
     for (let i = obstacles.length - 1; i >= 0; i--){
@@ -175,68 +286,66 @@
 
   // ---------- Obstacles ----------
   function spawnObstacle(){
-  let type = 0; // sword-squirrel (ground) by default
-  if (STATE.score > 180){
-    const flyerChance = STATE.score > 500 ? 0.45 : 0.25; // flying squirrels appear later
-    type = Math.random() < flyerChance ? 1 : 0;
+    let type = 0; // sword-squirrel (ground) by default
+    if (STATE.score > 180){
+      const flyerChance = STATE.score > 500 ? 0.45 : 0.25; // flying squirrels appear later
+      type = Math.random() < flyerChance ? 1 : 0;
+    }
+    obstacles.push(type === 0 ? SwordSquirrel() : Squirrel());
   }
-  obstacles.push(type === 0 ? SwordSquirrel() : Squirrel());
-}
   function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
   function currentGapMax(){ return STATE.score < 150 ? 1500 : STATE.score < 350 ? 1300 : STATE.score < 700 ? 1100 : 950; }
 
   function SwordSquirrel(){
-  // Render the 64x64 sprite at ~70% so it sits nicely on the ground line
-  const SPRITE_W = 64, SPRITE_H = 64, SCALE = 0.70;
-  const w = Math.round(SPRITE_W * SCALE);
-  const h = Math.round(SPRITE_H * SCALE);
-  const y = GROUND_Y - h + 6; // slight sink to feel grounded
+    // Render the 64x64 sprite at ~70% so it sits nicely on the ground line
+    const SPRITE_W = 64, SPRITE_H = 64, SCALE = 0.70;
+    const w = Math.round(SPRITE_W * SCALE);
+    const h = Math.round(SPRITE_H * SCALE);
+    const y = GROUND_Y - h + 6; // slight sink to feel grounded
 
-  // Tight hitbox: trims sword glow/tail fluff so there’s no “air” collisions
-  const inset = {
-    left:  Math.round(w * 0.12),
-    right: Math.round(w * 0.10),
-    top:   Math.round(h * 0.14),
-    bot:   Math.round(h * 0.08),
-  };
+    // Tight hitbox: trims sword glow/tail fluff so there’s no “air” collisions
+    const inset = {
+      left:  Math.round(w * 0.12),
+      right: Math.round(w * 0.10),
+      top:   Math.round(h * 0.14),
+      bot:   Math.round(h * 0.08),
+    };
 
-  return {
-    type: 'sword_squirrel',
-    x: W + 10, y, w, h,
-    box(){
-      return {
-        x: this.x + inset.left,
-        y: this.y + inset.top,
-        w: this.w - inset.left - inset.right,
-        h: this.h - inset.top - inset.bot
-      };
-    },
-    draw(){
-      // simple slide R → L (no bob, no tilt)
-      drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0);
-
-      // // Debug hitbox (optional)
-      // const b = this.box();
-      // ctx.strokeStyle = 'rgba(255,0,0,.5)';
-      // ctx.strokeRect(Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h));
-    }
-  };
-}
-
+    return {
+      type: 'sword_squirrel',
+      x: W + 10, y, w, h,
+      box(){
+        return {
+          x: this.x + inset.left,
+          y: this.y + inset.top,
+          w: this.w - inset.left - inset.right,
+          h: this.h - inset.top - inset.bot
+        };
+      },
+      draw(){
+        ctx.imageSmoothingEnabled = false;
+        drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0);
+        // // Debug hitbox
+        // const b = this.box();
+        // ctx.strokeStyle = 'rgba(255,0,0,.5)';
+        // ctx.strokeRect(Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h));
+      }
+    };
+  }
 
   function Squirrel(){
-  // lower lanes so you must actually jump
-  const lanes = [GROUND_Y - 80, GROUND_Y - 120];  // was -100, -140
-  const baseY = lanes[Math.floor(Math.random()*lanes.length)];
-  const amp = 8 + Math.random()*8;               // slightly smaller bob so lows stay low
-  const period = 1000 + Math.random()*500;
-  const born = performance.now();
+    // lower lanes so you must actually jump
+    const lanes = [GROUND_Y - 80, GROUND_Y - 120];  // was -100, -140
+    const baseY = lanes[Math.floor(Math.random()*lanes.length)];
+    const amp = 8 + Math.random()*8;               // smaller bob so lows stay low
+    const period = 1000 + Math.random()*500;
+    const born = performance.now();
 
-  // render size a touch larger for fair collision
-  const w = 52, h = 40;                           // was 48,36
+    // render size a touch larger for fair collision
+    const w = 52, h = 40;                           // was 48,36
     return {
       type:'squirrel', x: W+10, y: baseY, w, h,
-      box(){ const p = 2; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },  // was p=6
+      box(){ const p = 2; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },
       draw(){
         const t = (performance.now() - born) / period;
         const bob = Math.sin(t * Math.PI * 2) * amp;
@@ -263,31 +372,22 @@
   // ---------- Render ----------
   function draw(){
     ctx.clearRect(0,0,W,H);
-    drawBackground();
-    drawGround();
+    BG.draw(ctx);     // forest parallax
+    drawGround();     // foreground ground strip
     drawPlayer();
     for (const o of obstacles){ o.draw(); }
   }
 
-  function drawBackground(){
-    // sky
-    const sky = ctx.createLinearGradient(0,0,0,H); sky.addColorStop(0,'#8fb8ff'); sky.addColorStop(1,'#d7ecff'); ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
-    // mountains parallax
-    const speed = STATE.speed*0.2, now = performance.now(); const s1 = (now/24*speed)%W; const s2 = (now/18*(STATE.speed*0.3))%W;
-    ctx.fillStyle = '#6d7faa';
-    for(let i=-1;i<3;i++){ const b=i*W-s1; mountain(b+0,H-120,b+160,H-220,b+320); mountain(b+240,H-110,b+380,H-190,b+520); mountain(b+500,H-130,b+660,H-230,b+820); }
-    ctx.fillStyle = '#556791';
-    for(let i=-1;i<3;i++){ const b=i*W-s2; mountain(b+80,H-90,b+210,H-170,b+340); mountain(b+360,H-100,b+490,H-180,b+620); mountain(b+620,H-95,b+750,H-165,b+880); }
-  }
-  function mountain(x0,by,px,py,x1){ ctx.beginPath(); ctx.moveTo(x0,by); ctx.lineTo(px,py); ctx.lineTo(x1,by); ctx.closePath(); ctx.fill(); }
-
   function drawGround(){
-    ctx.fillStyle = '#2b2b2b'; ctx.fillRect(0,GROUND_Y,W,GROUND_H);
-    ctx.fillStyle = '#1f1f1f'; const seg=24, off=Math.floor((performance.now()/30)%seg); for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
+    // dirt path to match forest
+    ctx.fillStyle = '#2a261f';
+    ctx.fillRect(0,GROUND_Y,W,GROUND_H);
+    ctx.fillStyle = '#3a3328';
+    const seg=24, off=Math.floor((performance.now()/30)%seg);
+    for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
   }
 
   function drawPlayer(){
-    // choose static sprite: run/jump both use bean_run; duck uses bean_duck
     const img = (PLAYER.duck && PLAYER.onGround) ? IMG.beanDuck : IMG.beanRun;
     drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h, 0);
   }
