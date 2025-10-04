@@ -88,13 +88,13 @@
     jump:  { img:new Image(), fw:64, fh:64, frames:1, ready:false, fps:1  },
     slide: { img:new Image(), fw:64, fh:64, frames:1, ready:false, fps:1  },
   };
-  BEAN.run.img.src   = '/img/bean_run.png';
-  BEAN.jump.img.src  = '/img/bean_jump.png';
-  BEAN.slide.img.src = '/img/bean_slide.png';
+  BEAN.run.img.src   = 'img/bean_run.png';
+  BEAN.jump.img.src  = 'img/bean_jump.png';
+  BEAN.slide.img.src = 'img/bean_slide.png';
   for (const k of Object.keys(BEAN)) BEAN[k].img.onload = ()=> BEAN[k].ready = true;
 
   const SQUIRREL = { img:new Image(), fw:64, fh:64, frames:1, ready:false };
-  SQUIRREL.img.src = '/img/squirrel.png';
+  SQUIRREL.img.src = 'img/squirrel.png';
   SQUIRREL.img.onload = ()=> SQUIRREL.ready = true;
 
   // ---------- Input ----------
