@@ -33,7 +33,7 @@
         <div class="center" id="center">
           <div class="card">
             <div style="font-weight:700">Press Space / Tap to begin</div>
-            <div class="sub">Jump: Space / ▲ &nbsp;•&nbsp; Duck/Slide: ▼ &nbsp;•&nbsp; Pause: P</div>
+            <div class="sub">Jump: Space / ▲ &nbsp;•&nbsp; Duck: ▼ &nbsp;•&nbsp; Pause: P</div>
           </div>
         </div>
       </div>
@@ -41,9 +41,10 @@
   </main>
 
   <script>
-  // ===== Bean Run — sprite build =====
-  // Bean sprites: /img/bean_run.png (6f @64x64), /img/bean_jump.png (1f), /img/bean_slide.png (1f)
-  // Squirrel obstacle: /img/squirrel.png (1f @64x64) with glide/bob motion
+  // ===== Bean Run — static sprite build =====
+  // Bean:   img/bean_run.png (single frame) for run & jump
+  // Duck:   img/bean_duck.png (single frame)
+  // Enemy:  img/squirrel.png (single frame) with vertical bob + slight tilt
 
   // Canvas
   const canvas = document.getElementById('game');
@@ -66,42 +67,25 @@
 
   // World
   const GROUND_Y = H - 48, GROUND_H = 20;
-  const PLAYER = { x:80, y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true, frame:0, animTime:0 };
+  const PLAYER = { x:80, y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true };
   const obstacles = [];
   let spawnCooldown = 900; // ms until next obstacle
 
-  // ---------- Sprites ----------
-  function drawSprite(ctx, img, fw, fh, frame, x, y, w, h, rot=0){
-    const cols = Math.max(1, Math.floor(img.width / fw));
-    const sx = (frame % cols) * fw;
-    const sy = Math.floor(frame / cols) * fh;
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.translate(x + w/2, y + h/2);
-    if (rot) ctx.rotate(rot);
-    ctx.drawImage(img, sx, sy, fw, fh, -w/2, -h/2, w, h);
-    ctx.restore();
-  }
-
-  const BEAN = {
-    run:   { img:new Image(), fw:64, fh:64, frames:6, ready:false, fps:10 },
-    jump:  { img:new Image(), fw:64, fh:64, frames:1, ready:false, fps:1  },
-    slide: { img:new Image(), fw:64, fh:64, frames:1, ready:false, fps:1  },
+  // ---------- Assets (single-frame sprites) ----------
+  const IMG = {
+    beanRun: new Image(),
+    beanDuck: new Image(),
+    squirrel: new Image(),
   };
-  BEAN.run.img.src   = 'img/bean_run.png';
-  BEAN.jump.img.src  = 'img/bean_jump.png';
-  BEAN.slide.img.src = 'img/bean_slide.png';
-  for (const k of Object.keys(BEAN)) BEAN[k].img.onload = ()=> BEAN[k].ready = true;
-
-  const SQUIRREL = { img:new Image(), fw:64, fh:64, frames:1, ready:false };
-  SQUIRREL.img.src = 'img/squirrel.png';
-  SQUIRREL.img.onload = ()=> SQUIRREL.ready = true;
+  IMG.beanRun.src = 'img/bean_run.png';
+  IMG.beanDuck.src = 'img/bean_duck.png';
+  IMG.squirrel.src = 'img/squirrel.png';
 
   // ---------- Input ----------
   function startGame(){
     STATE.started = true; STATE.running = true; STATE.over = false; STATE.paused = false;
     STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnCooldown = 900;
-    Object.assign(PLAYER, { y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true, frame:0, animTime:0 });
+    Object.assign(PLAYER, { y:GROUND_Y-40, w:44, h:40, vy:0, duck:false, onGround:true });
     centerEl.style.display = 'none';
     STATE.last = performance.now();
     requestAnimationFrame(loop);
@@ -150,7 +134,7 @@
       PLAYER.y += PLAYER.vy * dts;
       if (PLAYER.y >= GROUND_Y - PLAYER.h){ PLAYER.y = GROUND_Y - PLAYER.h; PLAYER.vy = 0; PLAYER.onGround = true; }
     } else if (PLAYER.duck){
-      PLAYER.h = 32; PLAYER.y = GROUND_Y - PLAYER.h; // slide crouch height
+      PLAYER.h = 32; PLAYER.y = GROUND_Y - PLAYER.h; // crouch height
     } else { PLAYER.h = 40; PLAYER.y = GROUND_Y - PLAYER.h; }
 
     // Obstacles
@@ -218,8 +202,8 @@
         const bob = Math.sin(t * Math.PI * 2) * amp;
         const tilt = Math.sin(t * Math.PI * 2) * 0.12; // ~7º each way
         this.y = baseY + bob;
-        if (SQUIRREL.ready){
-          drawSprite(ctx, SQUIRREL.img, SQUIRREL.fw, SQUIRREL.fh, 0, this.x, this.y, this.w, this.h, tilt);
+        if (IMG.squirrel.complete){
+          drawImage(IMG.squirrel, this.x, this.y, this.w, this.h, tilt);
         } else {
           // fallback blob
           ctx.fillStyle = '#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4);
@@ -263,31 +247,20 @@
   }
 
   function drawPlayer(){
-    // Choose sheet based on state
-    let sheet = BEAN.run; // default run
-    if (!PLAYER.onGround) sheet = BEAN.jump;
-    else if (PLAYER.duck) sheet = BEAN.slide;
-
-    // Animate run; others hold frame 0
-    if (sheet === BEAN.run) {
-      PLAYER.animTime += 1/60; // approx; visual only
-      PLAYER.frame = Math.floor(PLAYER.animTime * sheet.fps) % sheet.frames;
-    } else {
-      PLAYER.frame = 0;
-    }
-
-    if (sheet.ready) {
-      drawSprite(ctx, sheet.img, sheet.fw, sheet.fh, PLAYER.frame, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
-    } else {
-      // fallback placeholder Bean box
-      ctx.fillStyle = '#1b1b1b'; ctx.fillRect(PLAYER.x, PLAYER.y+PLAYER.h-6, PLAYER.w, 6);
-      ctx.fillStyle = '#5a3d2e'; ctx.fillRect(PLAYER.x+6, PLAYER.y+8, PLAYER.w-12, PLAYER.h-12);
-      ctx.fillStyle = '#3d281f'; ctx.fillRect(PLAYER.x+PLAYER.w-12, PLAYER.y-4, 4, 6); ctx.fillRect(PLAYER.x+PLAYER.w-18, PLAYER.y-4, 4, 6);
-      ctx.fillStyle = '#2a58b0'; ctx.fillRect(PLAYER.x+8, PLAYER.y+14, PLAYER.w-26, 3);
-    }
+    // choose static sprite: run/jump both use bean_run; duck uses bean_duck
+    const img = (PLAYER.duck && PLAYER.onGround) ? IMG.beanDuck : IMG.beanRun;
+    drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h, 0);
   }
 
-  // Utilities
+  // ---------- helpers ----------
+  function drawImage(img, x, y, w, h, rot){
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x + w/2, y + h/2);
+    if (rot) ctx.rotate(rot);
+    ctx.drawImage(img, 0, 0, img.width, img.height, -w/2, -h/2, w, h);
+    ctx.restore();
+  }
   const rand = (min,max)=> Math.random()*(max-min)+min;
 
   // Navbar inject (simple)
