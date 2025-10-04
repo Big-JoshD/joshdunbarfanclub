@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Josh's Gym Runner</title>
+  <title>Bean Run</title>
   <link rel="stylesheet" href="style.css" />
   <style>
     /* Page-scoped styles to avoid bleeding into the rest of the site */
@@ -23,11 +23,11 @@
 </head>
 <body class="game-page">
   <main class="content-box" style="max-width: 980px; width:100%">
-    <h1 class="section-title">Josh's Gym Runner</h1>
-    <p class="reverent-text" style="margin-bottom: 1rem;">Outdoor gym. Power racks in the foreground, mountains in the distance. Dodge 45lb plates and triceps ropes. PRs are temporary; reverence is forever.</p>
+    <h1 class="section-title">Bean Run</h1>
+    <p class="reverent-text" style="margin-bottom: 1rem;">Help Bean run home to Josh!</p>
 
     <div class="game-wrap">
-      <canvas id="game" width="960" height="320" aria-label="Josh's Gym Runner"></canvas>
+      <canvas id="game" tabindex="0" width="960" height="320" aria-label="Josh's Gym Runner"></canvas>
       <div class="hud" aria-live="polite">
         <div class="hi" id="hi">HI 00000</div>
         <div class="score" id="score">00000</div>
@@ -136,18 +136,25 @@
     }
   }
 
-  window.addEventListener('keydown', (e)=>{
-    // Allow starting from anywhere with Space/ArrowUp and prevent page scroll
+  function handleKeyDown(e){
     const isStartKey = (e.code==='Space' || e.code==='ArrowUp' || e.key===' ' || e.key==='Spacebar');
     if ((!STATE.started || STATE.over) && isStartKey){ e.preventDefault(); startGame(); return; }
-
-    keys.add(e.code);
-    if (isStartKey) { e.preventDefault(); jump(); }
+    if (isStartKey){ e.preventDefault(); jump(); }
     if (e.code==='ArrowDown') duck(true);
     if (e.code==='KeyP' || e.code==='Escape') pauseToggle();
-  });
-  window.addEventListener('keyup', (e)=>{
-    keys.delete(e.code);
+  }
+  function handleKeyUp(e){
+    if (e.code==='ArrowDown') duck(false);
+  }
+  // Attach to both window and document for maximum reliability
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+  document.addEventListener('keydown', handleKeyDown, {capture:true});
+  document.addEventListener('keyup', handleKeyUp, {capture:true});
+  // Older browsers sometimes only fire keypress for space
+  document.addEventListener('keypress', (e)=>{
+    if ((!STATE.started || STATE.over) && (e.key===' ' || e.code==='Space')){ e.preventDefault(); startGame(); }
+  }, {capture:true});
     if (e.code==='ArrowDown') duck(false);
   });
     if (e.code==='ArrowDown') duck(false);
@@ -523,6 +530,8 @@
   fetch('navbar.html').then(r=>r.text()).then(html=>{
     const nav = document.createElement('div');
     nav.innerHTML = html; document.body.insertBefore(nav, document.body.firstChild);
+    // Focus the canvas so Space works without scrolling
+    setTimeout(()=>{ try{ canvas.focus(); }catch{} }, 0);
   });
   </script>
 </body>
