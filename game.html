@@ -15,15 +15,18 @@
     .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
     .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; }
     .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-    .card { background:rgba(0,0,0,.6); color:#eee; border:1px solid #ffffff1a; border-radius:10px; padding:14px 18px; text-align:center; }
+    .card { background:rgba(0,0,0,.35); backdrop-filter: blur(2px); color:#eee; border:1px solid #ffffff1a; border-radius:10px; padding:14px 18px; text-align:center; }
+    .card h2{ margin:.2rem 0 .25rem; letter-spacing:.02em; }
     .sub { font-size:.92rem; opacity:.9; }
+    .blink { animation: blink 1.6s infinite; }
+    @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:.95} }
   </style>
 </head>
 <body class="game-page">
 
   <main class="game-section content-box">
     <h1 class="section-title">BEAN RUN</h1>
-    <p class="reverent-text">Help Bean escape the haunted forest — dodge the evil squirrels!</p>
+    <p class="reverent-text">Help Bean sprint through the haunted forest — dodge the evil squirrels!</p>
 
     <div class="game-wrap">
       <canvas id="game" width="960" height="320" tabindex="0" aria-label="Bean Run"></canvas>
@@ -31,9 +34,10 @@
         <div class="hi" id="hi">HI 00000</div>
         <div class="score" id="score">00000</div>
         <div class="center" id="center">
-          <div class="card">
-            <div style="font-weight:700">Press Space / Tap to begin</div>
-            <div class="sub">Jump: Space / ▲ &nbsp;•&nbsp; Duck: ▼ &nbsp;•&nbsp; Pause: P</div>
+          <div class="card start">
+            <h2>Bean Run</h2>
+            <p class="sub" style="margin:.1rem 0 .5rem">Bean is escaping the evil squirrels. Jump and duck to survive.</p>
+            <div class="sub blink">Click / Tap / Space to Start</div>
           </div>
         </div>
       </div>
@@ -41,7 +45,7 @@
   </main>
 
   <script>
-  // ===== Bean Run — Forest Parallax Build =====
+  // ===== Bean Run — Forest Parallax + Attract Mode =====
   // Bean:   img/bean_run.png (single frame) for run & jump
   // Duck:   img/bean_duck.png (single frame)
   // Enemy:  img/squirrel.png (flying, single frame) with vertical bob + slight tilt
@@ -60,7 +64,7 @@
 
   // State
   const STATE = {
-    started:false, running:false, paused:false, over:false,
+    started:false, paused:false, over:false,
     last:0, speed:6,
     score:0, hi: Number(sessionStorage.getItem('bean_hi') || 0),
     gravity: 1.05
@@ -73,7 +77,8 @@
 
   const PLAYER = { x:80, y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
   const obstacles = [];
-  let spawnCooldown = 900; // ms until next obstacle
+  let spawnCooldown = 900; // ms until next obstacle (play mode)
+  let demoCooldown = 600;  // ms until next obstacle (attract mode)
 
   // ---------- Assets (single-frame sprites) ----------
   const IMG = {
@@ -197,16 +202,14 @@
 
   // ---------- Input ----------
   function startGame(){
-    STATE.started = true; STATE.running = true; STATE.over = false; STATE.paused = false;
+    STATE.started = true; STATE.over = false; STATE.paused = false;
     STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnCooldown = 900;
     Object.assign(PLAYER, { y: groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true });
     centerEl.style.display = 'none';
-    STATE.last = performance.now();
-    requestAnimationFrame(loop);
   }
   const startIfReady = ()=>{ if (!STATE.started || STATE.over) startGame(); };
-  function jump(){ if (!STATE.running || STATE.paused || STATE.over) return; if (PLAYER.onGround){ PLAYER.vy = -10.2; PLAYER.onGround = false; PLAYER.duck = false; } }
-  function setDuck(d){ if (!STATE.running || STATE.paused || STATE.over) return; PLAYER.duck = !!d; }
+  function jump(){ if (!STATE.started || STATE.paused || STATE.over) return; if (PLAYER.onGround){ PLAYER.vy = -10.2; PLAYER.onGround = false; PLAYER.duck = false; } }
+  function setDuck(d){ if (!STATE.started || STATE.paused || STATE.over) return; PLAYER.duck = !!d; }
   function togglePause(){ if (!STATE.started || STATE.over) return; STATE.paused = !STATE.paused; centerEl.style.display = STATE.paused ? 'flex' : 'none'; }
 
   window.addEventListener('keydown', (e)=>{
@@ -219,17 +222,22 @@
   canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); startIfReady(); }, {passive:false});
   document.addEventListener('DOMContentLoaded', ()=>{ try{ canvas.focus(); }catch{} });
 
-  // ---------- Loop ----------
+  // ---------- Loop (runs always; switches between Attract and Play) ----------
+  requestAnimationFrame(loop);
   function loop(now){
-    if (!STATE.running) return;
     const dt = Math.min(32, now - STATE.last);
     const dts = dt / (1000/60);
     STATE.last = now;
-    if (!STATE.paused){ update(dts, dt); draw(); }
+
+    if (!STATE.paused){
+      if (STATE.started) updatePlay(dts, dt); else updateAttract(dts, dt);
+      draw();
+    }
     requestAnimationFrame(loop);
   }
 
-  function update(dts, dt){
+  // ---------- Update: Play Mode ----------
+  function updatePlay(dts, dt){
     // Speed ramp
     if (STATE.score < 300) STATE.speed += 0.0005 * dts;
     else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
@@ -262,7 +270,7 @@
       PLAYER.y = groundTop(PLAYER.h);
     }
 
-    // Obstacles
+    // Obstacles + collisions
     for (let i = obstacles.length - 1; i >= 0; i--){
       const o = obstacles[i];
       o.x -= STATE.speed * dts;
@@ -275,13 +283,67 @@
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
+  // ---------- Update: Attract (Preview) Mode ----------
+  function updateAttract(dts, dt){
+    const demoSpeedTarget = 4.8;
+    STATE.speed += (demoSpeedTarget - STATE.speed) * 0.05 * dts; // ease to target
+
+    // Parallax
+    BG.update(dts, STATE.speed);
+
+    // Spawn obstacles regularly
+    demoCooldown -= dt;
+    if (demoCooldown <= 0){
+      spawnObstacleDemo();
+      demoCooldown = 650; // steady pace for preview
+    }
+
+    // Simple auto-run + auto-jump logic
+    if (!PLAYER.onGround){
+      PLAYER.vy += STATE.gravity * dts * 0.5;
+      PLAYER.y  += PLAYER.vy * dts;
+      if (PLAYER.y >= groundTop(PLAYER.h)) { PLAYER.y = groundTop(PLAYER.h); PLAYER.vy = 0; PLAYER.onGround = true; }
+    } else {
+      PLAYER.h = 40; // stand in demo
+      PLAYER.y = groundTop(PLAYER.h);
+      const next = nextObstacleAhead();
+      if (next && (next.x - (PLAYER.x + PLAYER.w)) < 120) {
+        // If it looks like a ground threat or close fly‑by, hop it
+        PLAYER.vy = -9.8; PLAYER.onGround = false;
+      }
+    }
+
+    // Move obstacles (no collisions in demo)
+    for (let i = obstacles.length - 1; i >= 0; i--){
+      const o = obstacles[i];
+      o.x -= STATE.speed * dts;
+      if (o.x + o.w < -10) { obstacles.splice(i,1); }
+    }
+
+    // Fun rolling preview score (doesn't save)
+    const demoScore = Math.floor((performance.now()/1000) % 9999);
+    scoreEl.textContent = fmt(demoScore);
+    hiEl.textContent = 'HI ' + fmt(STATE.hi);
+  }
+
+  function nextObstacleAhead(){
+    let best = null, bestDx = Infinity;
+    for (const o of obstacles){
+      const dx = o.x - (PLAYER.x + PLAYER.w);
+      if (dx > 0 && dx < bestDx){ best = o; bestDx = dx; }
+    }
+    return best;
+  }
+
   function gameOver(){
-    STATE.running = false; STATE.over = true;
+    STATE.over = true; STATE.started = false;
     const s = Math.floor(STATE.score);
     if (s > STATE.hi){ STATE.hi = s; sessionStorage.setItem('bean_hi', String(s)); }
     scoreEl.textContent = fmt(s); hiEl.textContent = 'HI ' + fmt(STATE.hi);
     centerEl.style.display = 'flex';
-    centerEl.querySelector('.card').innerHTML = `<div style="font-weight:700">Game Over</div><div>Score: ${fmt(s)}</div><div class="sub" style="margin-top:.25rem">Press Space / Tap to retry</div>`;
+    centerEl.querySelector('.card').innerHTML = `<h2>Game Over</h2><div>Score: ${fmt(s)}</div><div class="sub" style="margin-top:.25rem">Click / Tap / Space to retry</div>`;
+    // reset demo after brief obstacle clear
+    obstacles.length = 0; demoCooldown = 300; STATE.speed = 4.8; // hand off to attract loop
   }
 
   // ---------- Obstacles ----------
@@ -293,6 +355,13 @@
     }
     obstacles.push(type === 0 ? SwordSquirrel() : Squirrel());
   }
+
+  function spawnObstacleDemo(){
+    // keep it varied but fair in preview
+    const type = Math.random() < 0.6 ? 0 : 1;
+    obstacles.push(type === 0 ? SwordSquirrel() : Squirrel());
+  }
+
   function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
   function currentGapMax(){ return STATE.score < 150 ? 1500 : STATE.score < 350 ? 1300 : STATE.score < 700 ? 1100 : 950; }
 
@@ -315,12 +384,7 @@
       type: 'sword_squirrel',
       x: W + 10, y, w, h,
       box(){
-        return {
-          x: this.x + inset.left,
-          y: this.y + inset.top,
-          w: this.w - inset.left - inset.right,
-          h: this.h - inset.top - inset.bot
-        };
+        return { x: this.x + inset.left, y: this.y + inset.top, w: this.w - inset.left - inset.right, h: this.h - inset.top - inset.bot };
       },
       draw(){
         ctx.imageSmoothingEnabled = false;
@@ -388,7 +452,7 @@
   }
 
   function drawPlayer(){
-    const img = (PLAYER.duck && PLAYER.onGround) ? IMG.beanDuck : IMG.beanRun;
+    const img = (PLAYER.duck && STATE.started) ? IMG.beanDuck : IMG.beanRun;
     drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h, 0);
   }
 
