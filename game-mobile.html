@@ -3,202 +3,140 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Bean Run — Mobile</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden;
-      background: #0b1a22;
-      touch-action: none;
-    }
-    canvas {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      display: block;
-      image-rendering: pixelated;
-    }
+    :root { --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); }
+    html, body { margin:0; height:100%; background:#0b1a22; overflow:hidden; }
+    /* Canvas fills screen via CSS; internal buffer uses fixed logical size */
+    #wrap { position:fixed; inset:0; padding-top:var(--safe-top); padding-bottom:var(--safe-bottom); }
+    canvas { width:100%; height:100%; display:block; image-rendering:pixelated; }
     .hud {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      color: #eee;
+      position:fixed; inset:0; pointer-events:none;
+      font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee;
     }
-    .hud .hi {
-      position: absolute;
-      top: 8px;
-      left: 12px;
-      opacity: 0.85;
-      text-shadow: 0 1px 0 #0008;
-    }
-    .hud .score {
-      position: absolute;
-      top: 8px;
-      right: 12px;
-      font-weight: 700;
-      text-shadow: 0 1px 0 #0008;
-    }
-    .center {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
+    .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; }
+    .center { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
     .card {
-      background: rgba(0, 0, 0, 0.35);
-      backdrop-filter: blur(3px);
-      color: #eee;
-      border: 1px solid #ffffff1a;
-      border-radius: 10px;
-      padding: 14px 18px;
-      text-align: center;
-      box-shadow: 0 8px 20px rgba(0,0,0,.5);
+      pointer-events:auto;
+      background:rgba(0,0,0,.35); backdrop-filter:blur(3px);
+      color:#eee; border:1px solid #ffffff1a; border-radius:12px;
+      padding:16px 20px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,.5);
     }
-    .blink { animation: blink 1.6s infinite; }
-    @keyframes blink {
-      0%, 100% { opacity: .3; }
-      50% { opacity: 1; }
-    }
+    .blink { animation:blink 1.6s infinite; }
+    @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:1} }
   </style>
 </head>
 <body>
-  <canvas id="game" width="800" height="480"></canvas>
+  <div id="wrap"><canvas id="game"></canvas></div>
+
   <div class="hud">
     <div class="hi" id="hi">HI 00000</div>
     <div class="score" id="score">00000</div>
     <div class="center" id="center">
       <div class="card">
-        <h2>Bean Run — Mobile</h2>
-        <p>Tap anywhere to jump<br>Hold bottom to duck</p>
-        <div class="blink">Tap to Start</div>
+        <h2 style="margin:.25rem 0">Bean Run — Mobile</h2>
+        <div>Tap anywhere to jump<br>Hold bottom to duck</div>
+        <div class="blink" style="margin-top:.5rem">Tap to Start</div>
       </div>
     </div>
   </div>
 
   <script>
-  // ---------- Setup ----------
+  // ---------- Fixed logical canvas (960x540), CSS scales to screen ----------
+  const LOGICAL_W = 960, LOGICAL_H = 540;
   const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  let W = canvas.width, H = canvas.height;
-  let GROUND_Y = H - 56, GROUND_H = 22;
-  const BEAN_FOOT_SINK = 4;
-  const groundTop = (h) => GROUND_Y - h + BEAN_FOOT_SINK;
+  const ctx = canvas.getContext('2d', { alpha: true });
+  function resize() {
+    // Internal buffer stays fixed; CSS stretches it. Super reliable on iOS.
+    const dpr = Math.min(2, window.devicePixelRatio || 1); // cap DPR to keep perf
+    canvas.width  = Math.floor(LOGICAL_W * dpr);
+    canvas.height = Math.floor(LOGICAL_H * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0); // scale drawing to logical space
+    rebuildForest(); // ensure treeline aligns to ground on any change
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 
-  const STATE = { started:false, over:false, last:0, speed:5, gravity:1.05, score:0, hi:0 };
-  const PLAYER = { x:80, y:0, w:44, h:40, vy:0, duck:false, onGround:true };
-  PLAYER.y = groundTop(PLAYER.h);
-  const obstacles = [];
+  // ---------- Game state ----------
+  const W = LOGICAL_W, H = LOGICAL_H;
+  let GROUND_Y = H - 56, GROUND_H = 22;
+  const BEAN_FOOT_SINK = 4, groundTop = h => GROUND_Y - h + BEAN_FOOT_SINK;
+
+  const STATE = { started:false, over:false, last:0, speed:5, gravity:1.05, score:0, hi:Number(sessionStorage.getItem('bean_hi')||0) };
   const fmt = n => n.toString().padStart(5,'0');
-  const scoreEl = document.getElementById('score');
-  const hiEl = document.getElementById('hi');
-  const centerEl = document.getElementById('center');
-  const IMG = {
-    beanRun:new Image(), beanDuck:new Image(),
-    squirrel:new Image(), swordSquirrel:new Image()
-  };
+  const scoreEl = document.getElementById('score'), hiEl = document.getElementById('hi'), centerEl = document.getElementById('center');
+
+  const PLAYER = { x: Math.floor(W*0.18), y: groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
+
+  // ---------- Assets ----------
+  const IMG = { beanRun:new Image(), beanDuck:new Image(), squirrel:new Image(), swordSquirrel:new Image() };
   IMG.beanRun.src='img/bean_run.png';
   IMG.beanDuck.src='img/bean_duck.png';
   IMG.squirrel.src='img/squirrel.png';
   IMG.swordSquirrel.src='img/swordsquirrel.png';
 
-  // ---------- Background ----------
-  let forestLayers = [];
-  function makeForest() {
-    forestLayers = [];
-    const baseH = H;
-    const defs = [
-      {speed:0.2, hue:'#4a9557', trunk:'#33643b', scale:0.9},
-      {speed:0.4, hue:'#3e864f', trunk:'#2f613b', scale:1.2},
-      {speed:0.7, hue:'#2f7a45', trunk:'#255d36', scale:1.4},
+  // ---------- Forest (rebuilt on resize) ----------
+  let layers = null;
+  function rebuildForest(){
+    layers = [
+      makeLayer({speed:0.22, hue:'#50915a', trunk:'#37623c', scale:0.95, step:26}),
+      makeLayer({speed:0.42, hue:'#3e864f', trunk:'#2f613b', scale:1.18, step:24}),
+      makeLayer({speed:0.70, hue:'#2f7a45', trunk:'#255d36', scale:1.38, step:22}),
     ];
-    for (const d of defs) {
-      const c = document.createElement('canvas');
-      c.width = W * 2; c.height = H;
-      const g = c.getContext('2d');
-      const base = GROUND_Y;
-      for (let x=-20;x<c.width;x+=24){
-        const s = d.scale*(0.8+Math.random()*0.4);
-        drawTree(g, x, base, Math.floor(48*s), d.hue, d.trunk);
-      }
-      forestLayers.push({c, offset:0, speed:d.speed});
-    }
   }
-  function drawTree(g,x,base,h,leaf,trunk){
-    const w=h*0.4;
+  function makeLayer(opts){
+    const c = document.createElement('canvas'), g = c.getContext('2d');
+    c.width = W; c.height = H;
+    const base = GROUND_Y;
+    for (let x=-20; x<c.width+40; x += opts.step){
+      const s = opts.scale*(0.9+Math.random()*0.35);
+      drawTree(g, x, base, Math.floor(48*s), opts.hue, opts.trunk);
+    }
+    return { c, offset:0, speed:opts.speed };
+  }
+  function drawTree(g, x, base, h, leaf, trunk){
+    const w=Math.max(12, Math.floor(h*0.42));
+    // canopy
     g.fillStyle=leaf;
-    g.beginPath();
-    g.moveTo(x, base-h);
-    g.lineTo(x-w/2, base);
-    g.lineTo(x+w/2, base);
-    g.closePath();
-    g.fill();
-    g.fillStyle=trunk;
-    g.fillRect(x-2, base, 4, 10);
+    g.beginPath(); g.moveTo(x, base - h); g.lineTo(x - w/2, base); g.lineTo(x + w/2, base); g.closePath(); g.fill();
+    // trunk
+    g.fillStyle=trunk; g.fillRect(x-2, base, 4, Math.max(6, Math.floor(h*0.18)));
   }
-
   function drawForest(dts, speed){
-    const grad = ctx.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0,'#d4ecff'); grad.addColorStop(1,'#b6defd');
-    ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
-    for (const L of forestLayers){
-      L.offset -= speed*L.speed*dts;
+    // sky
+    const sky = ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,'#d4ecff'); sky.addColorStop(1,'#b6defd');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+    // layers
+    for(const L of layers){
+      L.offset -= speed * L.speed * dts;
       if (L.offset <= -W) L.offset += W;
-      ctx.drawImage(L.c, L.offset, 0);
-      ctx.drawImage(L.c, L.offset + W, 0);
+      ctx.drawImage(L.c, Math.floor(L.offset), 0);
+      ctx.drawImage(L.c, Math.floor(L.offset+W), 0);
     }
-    ctx.fillStyle = '#20331f';
-    ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
+    // floor
+    ctx.fillStyle='#20331f'; ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
   }
 
-  // ---------- Resize ----------
-  function resize(){
-    W = window.innerWidth;
-    H = window.innerHeight;
-    canvas.width = W;
-    canvas.height = H;
-    GROUND_Y = H - 56;
-    makeForest();
-  }
-  window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', ()=>setTimeout(resize,250));
-  resize();
-
-  // ---------- Controls ----------
+  // ---------- Touch controls ----------
   function startGame(){
-    STATE.started=true; STATE.over=false;
-    STATE.score=0; STATE.speed=5; obstacles.length=0;
-    Object.assign(PLAYER,{vy:0,onGround:true,duck:false});
-    PLAYER.y=groundTop(PLAYER.h);
-    centerEl.style.display='none';
+    STATE.started = true; STATE.over = false; STATE.score = 0; STATE.speed = 5;
+    Object.assign(PLAYER, { vy:0, onGround:true, duck:false });
+    PLAYER.y = groundTop(PLAYER.h);
+    centerEl.style.display = 'none';
   }
+  function jump(){ if(PLAYER.onGround){ PLAYER.vy = -10.4; PLAYER.onGround = false; PLAYER.duck = false; } }
+  function setDuck(d){ PLAYER.duck = !!d; }
 
-  function jump(){
-    if (PLAYER.onGround){
-      PLAYER.vy=-10.5; PLAYER.onGround=false; PLAYER.duck=false;
-    }
-  }
-
-  function setDuck(d){ PLAYER.duck=!!d; }
-
-  canvas.addEventListener('touchstart', (e)=>{
+  canvas.addEventListener('touchstart', e=>{
     e.preventDefault();
-    const touch = e.touches[0];
-    const y = touch.clientY;
-    if (!STATE.started || STATE.over){
-      startGame();
-      jump();
-      return;
-    }
-    if (y > window.innerHeight*0.85) setDuck(true);
-    else jump();
+    const y = e.touches[0].clientY;
+    if (!STATE.started || STATE.over){ startGame(); jump(); return; }
+    if (y > window.innerHeight * 0.85) setDuck(true); else jump();
   }, {passive:false});
-  canvas.addEventListener('touchend', ()=>setDuck(false));
+  canvas.addEventListener('touchend', ()=> setDuck(false), {passive:true});
 
   // ---------- Loop ----------
   requestAnimationFrame(loop);
@@ -208,52 +146,43 @@
     STATE.last = now;
 
     update(dts);
-    draw(dts);
+    render(dts);
     requestAnimationFrame(loop);
   }
 
   function update(dts){
-    if (!STATE.started) return;
+    // gentle speed ramp
+    if (STATE.started) STATE.speed += 0.0006 * dts;
 
-    STATE.speed += 0.0006 * dts;
-    drawForest(dts, STATE.speed);
-
-    // Gravity
+    // gravity
     if (!PLAYER.onGround){
       PLAYER.vy += STATE.gravity * dts * 0.5;
-      PLAYER.y += PLAYER.vy * dts;
+      PLAYER.y  += PLAYER.vy * dts;
       if (PLAYER.y >= groundTop(PLAYER.h)){
-        PLAYER.y = groundTop(PLAYER.h);
-        PLAYER.vy=0;
-        PLAYER.onGround=true;
+        PLAYER.y = groundTop(PLAYER.h); PLAYER.vy = 0; PLAYER.onGround = true;
       }
     } else if (PLAYER.duck){
-      PLAYER.h=32; PLAYER.y=groundTop(PLAYER.h);
+      PLAYER.h = 32; PLAYER.y = groundTop(PLAYER.h);
     } else {
-      PLAYER.h=40; PLAYER.y=groundTop(PLAYER.h);
+      PLAYER.h = 40; PLAYER.y = groundTop(PLAYER.h);
     }
   }
 
-  function draw(){
+  function render(dts){
     ctx.clearRect(0,0,W,H);
-    drawForest(1, STATE.speed);
-    drawGround();
-    drawPlayer();
+    drawForest(dts, STATE.speed);
+    // ground detail
+    ctx.fillStyle='#3a3328'; ctx.fillRect(0,GROUND_Y,W,GROUND_H);
+    ctx.fillStyle='#4a4238'; const seg=24, off=Math.floor((performance.now()/30)%seg);
+    for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
+    // player
+    const img = (PLAYER.duck && STATE.started) ? IMG.beanDuck : IMG.beanRun;
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
   }
 
-  function drawGround(){
-    ctx.fillStyle='#3a3328';
-    ctx.fillRect(0,GROUND_Y,W,GROUND_H);
-    ctx.fillStyle='#4a4238';
-    const seg=24, off=Math.floor((performance.now()/30)%seg);
-    for(let x=-off;x<W;x+=seg)
-      ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3);
-  }
-
-  function drawPlayer(){
-    const img=(PLAYER.duck&&STATE.started)?IMG.beanDuck:IMG.beanRun;
-    ctx.drawImage(img,PLAYER.x,PLAYER.y,PLAYER.w,PLAYER.h);
-  }
+  // boot
+  resize();
   </script>
 </body>
 </html>
