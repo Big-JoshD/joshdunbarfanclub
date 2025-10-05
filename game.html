@@ -45,7 +45,7 @@
   </main>
 
   <script>
-  // ===== Bean Run — Forest Parallax + Attract Mode (Fixed) =====
+  // ===== Bean Run — Forest Parallax + Chill Attract Mode =====
   // Bean:   img/bean_run.png (single frame) for run & jump
   // Duck:   img/bean_duck.png (single frame)
   // Enemy:  img/squirrel.png (flying, single frame) with vertical bob + slight tilt
@@ -78,8 +78,22 @@
   const PLAYER = { x:80, y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
   const obstacles = [];
   let spawnCooldown = 900; // ms until next obstacle (play mode)
-  let demoCooldown = 700;  // ms until next obstacle (attract mode)
-  let lastJumpAt = 0;      // attract mode anti-spam
+
+  // Demo / attract tuning (slower, fewer enemies)
+  const DEMO = {
+    speedTarget: 3.2,
+    maxObstacles: 2,
+    minGapPx: 220,
+    spawnMin: 1100,
+    spawnMax: 1600,
+    jumpCooldownMs: 600,
+    leadGround: 210,      // distance lead for ground threats
+    leadFly: 170,          // distance lead for flying threats
+    leadSpeedMul: 18,      // scale lead by speed
+    jumpVy: -9.6
+  };
+  let demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax);
+  let lastJumpAt = 0;
 
   // ---------- Assets (single-frame sprites) ----------
   const IMG = {
@@ -99,9 +113,9 @@
   function makeForestBackground(W, H, groundY){
     const layers = [
       // Far, mid, near — taller scales, a bit faster for depth
-      makeLayer(W, H, groundY, {speedMul:0.28, hue:'#325a35', trunk:'#263f28', baseH:42, scale:0.9,  jitterY:6,  step:24}),
-      makeLayer(W, H, groundY, {speedMul:0.52, hue:'#2a5f35', trunk:'#23462a', baseH:50, scale:1.15, jitterY:8,  step:22}),
-      makeLayer(W, H, groundY, {speedMul:0.85, hue:'#1f5f34', trunk:'#1a4025', baseH:60, scale:1.35, jitterY:10, step:20}),
+      makeLayer(W, H, groundY, {speedMul:0.26, hue:'#50915a', trunk:'#37623c', baseH:44, scale:0.95, jitterY:6,  step:26}),
+      makeLayer(W, H, groundY, {speedMul:0.48, hue:'#3e864f', trunk:'#2f613b', baseH:56, scale:1.18, jitterY:8,  step:24}),
+      makeLayer(W, H, groundY, {speedMul:0.80, hue:'#2f7a45', trunk:'#255d36', baseH:66, scale:1.38, jitterY:10, step:22}),
     ];
 
     let skyGrad; // built on first draw to use real canvas size
@@ -116,9 +130,9 @@
         // lighter sky for more contrast
         if (!skyGrad){
           skyGrad = ctx.createLinearGradient(0,0,0,H);
-          skyGrad.addColorStop(0.00, '#bfe3ff');  // light top
-          skyGrad.addColorStop(0.55, '#a6d4ff');  // mid
-          skyGrad.addColorStop(1.00, '#8fc7ff');  // near horizon
+          skyGrad.addColorStop(0.00, '#cfe8ff');  // light top
+          skyGrad.addColorStop(0.55, '#b8dcff');  // mid
+          skyGrad.addColorStop(1.00, '#a2d0ff');  // near horizon
         }
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0,0,W,H);
@@ -132,7 +146,7 @@
         }
 
         // forest floor to blend with ground strip
-        ctx.fillStyle = '#1e2f1f';
+        ctx.fillStyle = '#20331f';
         ctx.fillRect(0, groundY, W, H - groundY);
       }
     };
@@ -284,22 +298,24 @@
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
-  // ---------- Update: Attract (Preview) Mode — smarter auto-jump ----------
+  // ---------- Update: Attract (Preview) Mode — slower + fewer enemies ----------
   function updateAttract(dts, dt){
-    const demoSpeedTarget = 5.2;
-    STATE.speed += (demoSpeedTarget - STATE.speed) * 0.08 * dts; // ease to target
+    // Ease speed to chill target
+    STATE.speed += (DEMO.speedTarget - STATE.speed) * 0.08 * dts;
 
     // Parallax
     BG.update(dts, STATE.speed);
 
-    // Spawn obstacles regularly
+    // Spawn obstacles at a slow, random cadence, with caps
     demoCooldown -= dt;
     if (demoCooldown <= 0){
-      spawnObstacleDemo();
-      demoCooldown = 700; // steady pace for preview
+      if (obstacles.length < DEMO.maxObstacles && farEnoughFromLast(DEMO.minGapPx)){
+        spawnObstacleDemo();
+      }
+      demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax);
     }
 
-    // Simple auto-run + auto-jump logic (predictive)
+    // Auto-run + predictive auto-jump
     const now = performance.now();
     if (!PLAYER.onGround){
       PLAYER.vy += STATE.gravity * dts * 0.5;
@@ -312,30 +328,33 @@
       const o = nextObstacleAhead();
       if (o){
         const dx = o.x - (PLAYER.x + PLAYER.w);
-        // dynamic lead based on speed and obstacle type
-        const baseLead = (o.type === 'sword_squirrel') ? 190 : 150;
-        const lead = baseLead + STATE.speed * 14; // earlier at higher speed
+        const flyClear = (o.type !== 'sword_squirrel') && ((o.y + o.h) < (PLAYER.y + 10));
+        const base = (o.type === 'sword_squirrel') ? DEMO.leadGround : DEMO.leadFly;
+        const lead = base + STATE.speed * DEMO.leadSpeedMul; // larger distance at higher speed
 
-        // If flying and clearly above Bean, no jump needed
-        const flyClear = (o.type !== 'sword_squirrel') && ((o.y + o.h) < (PLAYER.y + 14));
-
-        if (!flyClear && dx < lead && dx > 0 && (now - lastJumpAt) > 480){
-          PLAYER.vy = -9.8; PLAYER.onGround = false; lastJumpAt = now;
+        if (!flyClear && dx > 0 && dx < lead && (now - lastJumpAt) > DEMO.jumpCooldownMs){
+          PLAYER.vy = DEMO.jumpVy; PLAYER.onGround = false; lastJumpAt = now;
         }
       }
     }
 
-    // Move obstacles (ignore collisions in demo)
+    // Move obstacles (no collisions in demo)
     for (let i = obstacles.length - 1; i >= 0; i--){
       const o = obstacles[i];
       o.x -= STATE.speed * dts;
       if (o.x + o.w < -10) { obstacles.splice(i,1); }
     }
 
-    // Fun rolling preview score (doesn't save)
+    // rolling preview score (doesn't save)
     const demoScore = Math.floor((performance.now()/1000) % 9999);
     scoreEl.textContent = fmt(demoScore);
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
+  }
+
+  function farEnoughFromLast(minGap){
+    let rightMost = -Infinity;
+    for (const o of obstacles){ rightMost = Math.max(rightMost, o.x + o.w); }
+    return (W - rightMost) > minGap; // space since last obstacle tail
   }
 
   function nextObstacleAhead(){
@@ -353,9 +372,9 @@
     if (s > STATE.hi){ STATE.hi = s; sessionStorage.setItem('bean_hi', String(s)); }
     scoreEl.textContent = fmt(s); hiEl.textContent = 'HI ' + fmt(STATE.hi);
     centerEl.style.display = 'flex';
-    centerEl.querySelector('.card').innerHTML = `<h2>Game Over</h2><div>Score: ${fmt(s)}</div><div class="sub" style="margin-top:.25rem">Click / Tap / Space to retry</div>`;
-    // reset demo after brief obstacle clear
-    obstacles.length = 0; demoCooldown = 300; STATE.speed = 5.2; // hand off to attract loop
+    centerEl.querySelector('.card').innerHTML = `<h2>Game Over</h2><div>Score: ${fmt(s)}</div><div class=\"sub\" style=\"margin-top:.25rem\">Click / Tap / Space to retry</div>`;
+    // reset demo
+    obstacles.length = 0; demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax); STATE.speed = DEMO.speedTarget; lastJumpAt = 0;
   }
 
   // ---------- Obstacles ----------
@@ -369,8 +388,8 @@
   }
 
   function spawnObstacleDemo(){
-    // keep it varied but fair in preview
-    const type = Math.random() < 0.6 ? 0 : 1;
+    // keep it varied but fair in preview; bias to ground
+    const type = Math.random() < 0.65 ? 0 : 1;
     obstacles.push(type === 0 ? SwordSquirrel() : Squirrel());
   }
 
@@ -396,7 +415,12 @@
       type: 'sword_squirrel',
       x: W + 10, y, w, h,
       box(){
-        return { x: this.x + inset.left, y: this.y + inset.top, w: this.w - inset.left - inset.right, h: this.h - inset.top - this.bot };
+        return {
+          x: this.x + inset.left,
+          y: this.y + inset.top,
+          w: this.w - inset.left - inset.right,
+          h: this.h - inset.top - inset.bot
+        };
       },
       draw(){
         ctx.imageSmoothingEnabled = false;
@@ -473,7 +497,7 @@
     ctx.drawImage(img, 0, 0, img.width, img.height, -w/2, -h/2, w, h);
     ctx.restore();
   }
-  const rand = (min,max)=> Math.random()*(max-min)+min;
+  function rand(min,max){ return Math.random()*(max-min)+min; }
 
   // Navbar inject (simple)
   fetch('navbar.html').then(r=>r.text()).then(html=>{ const nav=document.createElement('div'); nav.innerHTML=html; document.body.insertBefore(nav, document.body.firstChild); });
