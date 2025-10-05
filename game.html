@@ -248,7 +248,22 @@
   const startIfReady = ()=>{ if (!STATE.started || STATE.over) startGame(); };
   function jump(){ if (!STATE.started || STATE.paused || STATE.over) return; if (PLAYER.onGround){ PLAYER.vy = -10.2; PLAYER.onGround = false; PLAYER.duck = false; } }
   function setDuck(d){ if (!STATE.started || STATE.paused || STATE.over) return; PLAYER.duck = !!d; }
-  function togglePause(){ if (!STATE.started || STATE.over) return; STATE.paused = !STATE.paused; centerEl.style.display = STATE.paused ? 'flex' : 'none'; }
+  function togglePause(){
+  if (!STATE.started || STATE.over) return;
+  STATE.paused = !STATE.paused;
+
+  if (STATE.paused) {
+    // show pause overlay
+    centerEl.style.display = 'flex';
+    centerEl.querySelector('.card').innerHTML = `
+      <h2>Paused</h2>
+      <div class="sub" style="margin-top:.25rem">Press <code>P</code> or <code>Esc</code> to resume</div>
+    `;
+  } else {
+    // hide overlay and resume
+    centerEl.style.display = 'none';
+  }
+}
 
   window.addEventListener('keydown', (e)=>{
     if (e.code==='Space' || e.code==='ArrowUp'){ e.preventDefault(); if (!STATE.started || STATE.over) startGame(); else jump(); }
