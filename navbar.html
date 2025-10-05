@@ -1,24 +1,57 @@
-<!-- navbar.html — markup-only so it fully inherits your site styles from style.css -->
-<nav>
-  <div class="bar">
-    <a href="index.html" class="link brand">JoshDunbarFanClub</a>
+<header>
+  <a href="index.html" class="brand">Josh Dunbar Fanclub</a>
+  <nav>
+    <a href="index.html">Home</a>
 
-    <a class="link" href="lore.html">Lore</a>
-    <a class="link" href="livecam.html">Live Cam</a>
-    <a class="link" href="fansubmissions.html">Fan Submissions</a>
-    <a class="link" href="merch.html">Merch</a>
-
-    <!-- Bean Run dropdown (no inline styles; inherits your nav look) -->
-    <details class="nav-dropdown">
-      <summary class="link">Bean Run</summary>
-      <div class="panel">
-        <a class="link" href="game.html">Bean Run (Desktop)</a>
-        <a class="link" href="game-mobile.html">Bean Run (Mobile)</a>
+    <!-- Archives Dropdown -->
+    <div class="dropdown">
+      <a href="#">Study The Archives ⬇</a>
+      <div class="dropdown-content">
+        <a href="lore.html">Josh Dunbar Lore</a>
+        <a href="poetry.html">Josh Dunbar Poetry</a>
+        <a href="fansubmissions.html">Fan Submissions</a>
       </div>
-    </details>
+    </div>
 
-    <span class="spacer"></span>
-    <a class="link" href="faq.html">FAQ</a>
-    <a class="link" href="contact.html">Contact</a>
-  </div>
-</nav>
+    <!-- Surveillance Dropdown -->
+    <div class="dropdown">
+      <a href="#">Bear Witness ⬇</a>
+      <div class="dropdown-content">
+        <a href="beancam.html">Bean Tracker</a>
+        <a href="livecam.html">Live 24/7 Camera Feed 📸</a>
+        <a href="spicy.html">Spicy Photos 🥵🔥</a>
+      </div>
+    </div>
+
+    <!-- Divine Metrics Dropdown -->
+    <div class="dropdown">
+      <a href="#">Josh's Divine Metrics ⬇</a>
+      <div class="dropdown-content">
+        <a href="ranktracker.html">Rocket League Rank Tracker</a>
+        <a href="bicepsize.html">Bicep Size Over Time</a>
+        <a href="chessmetrics.html">Josh's Chess Metrics</a>
+      </div>
+    </div>
+
+    <!-- Standalone Links -->
+    <a href="dailyfacts.html">Daily Josh Fact</a>
+    <a href="game.html">Bean Run</a>
+    <a href="merch.html">Merch</a>
+    <a href="faq.html">FAQs</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll(".dropdown > a").forEach(trigger => {
+        trigger.addEventListener("click", function (e) {
+          e.preventDefault();
+          const parent = this.parentElement;
+          const wasOpen = parent.classList.contains("open");
+          document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
+          if (!wasOpen) parent.classList.add("open");
+        });
+      });
+    });
+  </script>
+</header>
