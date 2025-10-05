@@ -26,7 +26,7 @@
 
   <main class="game-section content-box">
     <h1 class="section-title">BEAN RUN</h1>
-    <p class="reverent-text">Help Bean sprint through the haunted forest — dodge the evil squirrels!</p>
+    <p class="reverent-text">Help Bean sprint through the forest — dodge the evil squirrels!</p>
 
     <div class="game-wrap">
       <canvas id="game" width="960" height="320" tabindex="0" aria-label="Bean Run"></canvas>
@@ -45,7 +45,7 @@
   </main>
 
   <script>
-  // ===== Bean Run — Forest Parallax + Attract Mode =====
+  // ===== Bean Run — Forest Parallax + Attract Mode (Fixed) =====
   // Bean:   img/bean_run.png (single frame) for run & jump
   // Duck:   img/bean_duck.png (single frame)
   // Enemy:  img/squirrel.png (flying, single frame) with vertical bob + slight tilt
@@ -78,7 +78,8 @@
   const PLAYER = { x:80, y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
   const obstacles = [];
   let spawnCooldown = 900; // ms until next obstacle (play mode)
-  let demoCooldown = 600;  // ms until next obstacle (attract mode)
+  let demoCooldown = 700;  // ms until next obstacle (attract mode)
+  let lastJumpAt = 0;      // attract mode anti-spam
 
   // ---------- Assets (single-frame sprites) ----------
   const IMG = {
@@ -92,14 +93,15 @@
   IMG.squirrel.src = 'img/squirrel.png';
   IMG.swordSquirrel.src = 'img/swordsquirrel.png';
 
-  // ---------- Forest Parallax Background ----------
+  // ---------- Forest Parallax Background (taller trees + lighter sky) ----------
   const BG = makeForestBackground(W, H, GROUND_Y);
 
   function makeForestBackground(W, H, groundY){
     const layers = [
-      makeLayer(W, H, groundY, {speedMul:0.25, hue:'#243147', trunk:'#1a2333', scale:0.75, jitterY:6}),
-      makeLayer(W, H, groundY, {speedMul:0.45, hue:'#193a2f', trunk:'#11281f', scale:0.95, jitterY:8}),
-      makeLayer(W, H, groundY, {speedMul:0.75, hue:'#0f3d24', trunk:'#0b2a19', scale:1.15, jitterY:10}),
+      // Far, mid, near — taller scales, a bit faster for depth
+      makeLayer(W, H, groundY, {speedMul:0.28, hue:'#325a35', trunk:'#263f28', baseH:42, scale:0.9,  jitterY:6,  step:24}),
+      makeLayer(W, H, groundY, {speedMul:0.52, hue:'#2a5f35', trunk:'#23462a', baseH:50, scale:1.15, jitterY:8,  step:22}),
+      makeLayer(W, H, groundY, {speedMul:0.85, hue:'#1f5f34', trunk:'#1a4025', baseH:60, scale:1.35, jitterY:10, step:20}),
     ];
 
     let skyGrad; // built on first draw to use real canvas size
@@ -111,13 +113,12 @@
         }
       },
       draw(ctx){
-        // sky gradient
+        // lighter sky for more contrast
         if (!skyGrad){
           skyGrad = ctx.createLinearGradient(0,0,0,H);
-          skyGrad.addColorStop(0.00, '#0a0f1c');
-          skyGrad.addColorStop(0.45, '#13213a');
-          skyGrad.addColorStop(0.85, '#0b1a22');
-          skyGrad.addColorStop(1.00, '#0b1a22');
+          skyGrad.addColorStop(0.00, '#bfe3ff');  // light top
+          skyGrad.addColorStop(0.55, '#a6d4ff');  // mid
+          skyGrad.addColorStop(1.00, '#8fc7ff');  // near horizon
         }
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0,0,W,H);
@@ -131,7 +132,7 @@
         }
 
         // forest floor to blend with ground strip
-        ctx.fillStyle = '#0b1f13';
+        ctx.fillStyle = '#1e2f1f';
         ctx.fillRect(0, groundY, W, H - groundY);
       }
     };
@@ -139,23 +140,23 @@
     function makeLayer(W, H, groundY, opts){
       const c = document.createElement('canvas');
       const g = c.getContext('2d');
-      c.width = Math.max(W, 512);
+      c.width = Math.max(W, 640);
       c.height = H;
 
       g.clearRect(0,0,c.width,c.height);
 
-      // repeating treeline clusters
+      // repeating treeline clusters — taller trees
       const base = groundY;
-      const step = 26; // spacing between clusters
+      const step = opts.step || 24; // spacing between clusters
       for (let x = -20; x < c.width + 40; x += step){
-        const s = opts.scale * (0.85 + Math.random()*0.3);
+        const s = opts.scale * (0.9 + Math.random()*0.35);
         const y = base + Math.floor((Math.random()*opts.jitterY) - opts.jitterY*0.5);
-        const cluster = 2 + (Math.random() < 0.5 ? 1 : 0); // 2–3 trees per cluster
+        const cluster = 2 + (Math.random() < 0.6 ? 1 : 0); // 2–3 trees per cluster
         for (let i=0;i<cluster;i++){
           drawPine(g,
-            Math.floor(x + (i-0.5)*8),
+            Math.floor(x + (i-0.5)*10),
             y,
-            Math.floor(34*s*(1 + i*0.05)),
+            Math.floor((opts.baseH||48)*s*(1 + i*0.05)),
             opts.hue,
             opts.trunk
           );
@@ -165,18 +166,18 @@
     }
 
     function drawPine(g, x, baseY, h, leafColor, trunkColor){
-      const w = Math.max(10, Math.floor(h*0.38));
+      const w = Math.max(12, Math.floor(h*0.42));
       const trunkW = Math.max(3, Math.floor(w*0.18));
-      const trunkH = Math.max(4, Math.floor(h*0.18));
+      const trunkH = Math.max(5, Math.floor(h*0.22));
       const topY = baseY - h;
 
       // canopy: stacked triangles
       g.fillStyle = leafColor;
       const tiers = 3;
       for (let t=0; t<tiers; t++){
-        const ty = Math.floor(topY + (t/tiers)*h*0.75);
+        const ty = Math.floor(topY + (t/tiers)*h*0.78);
         const tw = Math.floor(w - t*(w*0.22));
-        drawIsoTri(g, x, ty, tw, Math.floor(h*0.30));
+        drawIsoTri(g, x, ty, tw, Math.floor(h*0.34));
       }
 
       // trunk
@@ -203,7 +204,7 @@
   // ---------- Input ----------
   function startGame(){
     STATE.started = true; STATE.over = false; STATE.paused = false;
-    STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnCooldown = 900;
+    STATE.score = 0; STATE.speed = 6; obstacles.length = 0; spawnCooldown = 900; lastJumpAt = 0;
     Object.assign(PLAYER, { y: groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true });
     centerEl.style.display = 'none';
   }
@@ -283,10 +284,10 @@
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
-  // ---------- Update: Attract (Preview) Mode ----------
+  // ---------- Update: Attract (Preview) Mode — smarter auto-jump ----------
   function updateAttract(dts, dt){
-    const demoSpeedTarget = 4.8;
-    STATE.speed += (demoSpeedTarget - STATE.speed) * 0.05 * dts; // ease to target
+    const demoSpeedTarget = 5.2;
+    STATE.speed += (demoSpeedTarget - STATE.speed) * 0.08 * dts; // ease to target
 
     // Parallax
     BG.update(dts, STATE.speed);
@@ -295,10 +296,11 @@
     demoCooldown -= dt;
     if (demoCooldown <= 0){
       spawnObstacleDemo();
-      demoCooldown = 650; // steady pace for preview
+      demoCooldown = 700; // steady pace for preview
     }
 
-    // Simple auto-run + auto-jump logic
+    // Simple auto-run + auto-jump logic (predictive)
+    const now = performance.now();
     if (!PLAYER.onGround){
       PLAYER.vy += STATE.gravity * dts * 0.5;
       PLAYER.y  += PLAYER.vy * dts;
@@ -306,14 +308,24 @@
     } else {
       PLAYER.h = 40; // stand in demo
       PLAYER.y = groundTop(PLAYER.h);
-      const next = nextObstacleAhead();
-      if (next && (next.x - (PLAYER.x + PLAYER.w)) < 120) {
-        // If it looks like a ground threat or close fly‑by, hop it
-        PLAYER.vy = -9.8; PLAYER.onGround = false;
+
+      const o = nextObstacleAhead();
+      if (o){
+        const dx = o.x - (PLAYER.x + PLAYER.w);
+        // dynamic lead based on speed and obstacle type
+        const baseLead = (o.type === 'sword_squirrel') ? 190 : 150;
+        const lead = baseLead + STATE.speed * 14; // earlier at higher speed
+
+        // If flying and clearly above Bean, no jump needed
+        const flyClear = (o.type !== 'sword_squirrel') && ((o.y + o.h) < (PLAYER.y + 14));
+
+        if (!flyClear && dx < lead && dx > 0 && (now - lastJumpAt) > 480){
+          PLAYER.vy = -9.8; PLAYER.onGround = false; lastJumpAt = now;
+        }
       }
     }
 
-    // Move obstacles (no collisions in demo)
+    // Move obstacles (ignore collisions in demo)
     for (let i = obstacles.length - 1; i >= 0; i--){
       const o = obstacles[i];
       o.x -= STATE.speed * dts;
@@ -343,7 +355,7 @@
     centerEl.style.display = 'flex';
     centerEl.querySelector('.card').innerHTML = `<h2>Game Over</h2><div>Score: ${fmt(s)}</div><div class="sub" style="margin-top:.25rem">Click / Tap / Space to retry</div>`;
     // reset demo after brief obstacle clear
-    obstacles.length = 0; demoCooldown = 300; STATE.speed = 4.8; // hand off to attract loop
+    obstacles.length = 0; demoCooldown = 300; STATE.speed = 5.2; // hand off to attract loop
   }
 
   // ---------- Obstacles ----------
@@ -384,29 +396,25 @@
       type: 'sword_squirrel',
       x: W + 10, y, w, h,
       box(){
-        return { x: this.x + inset.left, y: this.y + inset.top, w: this.w - inset.left - inset.right, h: this.h - inset.top - inset.bot };
+        return { x: this.x + inset.left, y: this.y + inset.top, w: this.w - inset.left - inset.right, h: this.h - inset.top - this.bot };
       },
       draw(){
         ctx.imageSmoothingEnabled = false;
         drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0);
-        // // Debug hitbox
-        // const b = this.box();
-        // ctx.strokeStyle = 'rgba(255,0,0,.5)';
-        // ctx.strokeRect(Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h));
       }
     };
   }
 
   function Squirrel(){
     // lower lanes so you must actually jump
-    const lanes = [GROUND_Y - 80, GROUND_Y - 120];  // was -100, -140
+    const lanes = [GROUND_Y - 80, GROUND_Y - 120];
     const baseY = lanes[Math.floor(Math.random()*lanes.length)];
     const amp = 8 + Math.random()*8;               // smaller bob so lows stay low
     const period = 1000 + Math.random()*500;
     const born = performance.now();
 
     // render size a touch larger for fair collision
-    const w = 52, h = 40;                           // was 48,36
+    const w = 52, h = 40;
     return {
       type:'squirrel', x: W+10, y: baseY, w, h,
       box(){ const p = 2; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },
@@ -444,9 +452,9 @@
 
   function drawGround(){
     // dirt path to match forest
-    ctx.fillStyle = '#2a261f';
-    ctx.fillRect(0,GROUND_Y,W,GROUND_H);
     ctx.fillStyle = '#3a3328';
+    ctx.fillRect(0,GROUND_Y,W,GROUND_H);
+    ctx.fillStyle = '#4a4238';
     const seg=24, off=Math.floor((performance.now()/30)%seg);
     for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
   }
