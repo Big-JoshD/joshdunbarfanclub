@@ -166,26 +166,37 @@
   const BG = makeForestBackground(W, H, GROUND_Y);
 
   function makeForestBackground(W, H, groundY){
-  // layer configs (you can tweak colors/heights later)
-  const cfgs = [
-    { speedMul:0.10, hue:'#50915a', trunk:'#37623c', baseH:44, scale:0.95, jitterY:6,  step:26 }, // far
-    { speedMul:0.20, hue:'#3e864f', trunk:'#2f613b', baseH:56, scale:1.10, jitterY:8,  step:24 }, // mid
-    { speedMul:0.32, hue:'#2f7a45', trunk:'#255d36', baseH:66, scale:1.25, jitterY:10, step:22 }, // near
-  ];
-
-  const layers = cfgs.map(c => makeLayer(W, H, groundY, c));
-  let skyGrad;
-
-  return {
-    update(dts, worldSpeed){
-      for (const L of layers){
-        // snap offset to integer px to avoid subpixel resampling flicker
-        L.offset -= worldSpeed * L.speedMul * dts;
-        // wrap and quantize
-        if (L.offset <= -L.canvas.width) L.offset += L.canvas.width;
-        L.offset = Math.round(L.offset); // <-- pixel snapping
+    const layers = [
+      makeLayer(W, H, groundY, {speedMul:0.26, hue:'#50915a', trunk:'#37623c', baseH:44, scale:0.95, jitterY:6,  step:26}),
+      makeLayer(W, H, groundY, {speedMul:0.48, hue:'#3e864f', trunk:'#2f613b', baseH:56, scale:1.18, jitterY:8,  step:24}),
+      makeLayer(W, H, groundY, {speedMul:0.80, hue:'#2f7a45', trunk:'#255d36', baseH:66, scale:1.38, jitterY:10, step:22}),
+    ];
+    let skyGrad;
+    return {
+      update(dts, worldSpeed){
+        for(const L of layers){
+          L.offset -= worldSpeed * L.speedMul * dts;
+          if (L.offset <= -L.canvas.width) L.offset += L.canvas.width;
+        }
+      },
+      draw(ctx){
+        if (!skyGrad){
+          skyGrad = ctx.createLinearGradient(0,0,0,H);
+          skyGrad.addColorStop(0.00, '#cfe8ff');
+          skyGrad.addColorStop(0.55, '#b8dcff');
+          skyGrad.addColorStop(1.00, '#a2d0ff');
+        }
+        ctx.fillStyle = skyGrad; ctx.fillRect(0,0,W,H);
+        ctx.imageSmoothingEnabled = false;
+        for(const L of layers){
+          const x1 = Math.floor(L.offset);
+          const x2 = x1 + L.canvas.width;
+          ctx.drawImage(L.canvas, x1, 0);
+          ctx.drawImage(L.canvas, x2, 0);
+        }
+        ctx.fillStyle = '#20331f'; ctx.fillRect(0, groundY, W, H - groundY);
       }
-    },
+    };
     draw(ctx){
       if (!skyGrad){
         skyGrad = ctx.createLinearGradient(0,0,0,H);
