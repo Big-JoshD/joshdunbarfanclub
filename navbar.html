@@ -1,4 +1,4 @@
-<!-- Navbar — reverted to original look by removing heavy inline styles; only minimal, scoped CSS for the Bean Run dropdown. -->
+<!-- navbar.html — markup-only so it fully inherits your site styles from style.css -->
 <nav>
   <div class="bar">
     <a href="index.html" class="link brand">JoshDunbarFanClub</a>
@@ -8,11 +8,11 @@
     <a class="link" href="fansubmissions.html">Fan Submissions</a>
     <a class="link" href="merch.html">Merch</a>
 
-    <!-- Bean Run dropdown (desktop inherits your existing nav styles) -->
+    <!-- Bean Run dropdown (no inline styles; inherits your nav look) -->
     <details class="nav-dropdown">
       <summary class="link">Bean Run</summary>
       <div class="panel">
-        <a class="link" href="game (2).html">Bean Run (Desktop)</a>
+        <a class="link" href="game.html">Bean Run (Desktop)</a>
         <a class="link" href="game-mobile.html">Bean Run (Mobile)</a>
       </div>
     </details>
@@ -22,18 +22,3 @@
     <a class="link" href="contact.html">Contact</a>
   </div>
 </nav>
-
-<!-- Minimal, highly scoped dropdown CSS. This won't change your existing desktop nav visuals. -->
-<style>
-  .nav-dropdown{ position:relative; display:inline-block; }
-  .nav-dropdown > summary{ list-style:none; cursor:pointer; }
-  .nav-dropdown > summary::-webkit-details-marker{ display:none; }
-  /* Panel inherits your nav colors/typography; we only handle layout/positioning */
-  .nav-dropdown .panel{ position:absolute; top:100%; left:0; min-width:180px; display:none; padding:.25rem; background:inherit; border:1px solid currentColor; border-radius:8px; box-shadow:0 12px 24px rgba(0,0,0,.25); }
-  .nav-dropdown .panel .link{ display:block; white-space:nowrap; padding:.35rem .6rem; }
-  .nav-dropdown[open] .panel{ display:block; }
-  /* Optional: open on hover for pointer devices */
-  @media (hover:hover){
-    .nav-dropdown:hover .panel{ display:block; }
-  }
-</style>
