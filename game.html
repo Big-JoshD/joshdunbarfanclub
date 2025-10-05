@@ -45,7 +45,7 @@
   </main>
 
   <script>
-  // ===== Bean Run — Forest Parallax + Chill Attract Mode =====
+  // ===== Bean Run — Forest Parallax + Predictive Attract Mode =====
   // Bean:   img/bean_run.png (single frame) for run & jump
   // Duck:   img/bean_duck.png (single frame)
   // Enemy:  img/squirrel.png (flying, single frame) with vertical bob + slight tilt
@@ -55,6 +55,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
+  const FRAME_MS = 1000/60; // for prediction steps
 
   // HUD
   const scoreEl = document.getElementById('score');
@@ -79,17 +80,15 @@
   const obstacles = [];
   let spawnCooldown = 900; // ms until next obstacle (play mode)
 
-  // Demo / attract tuning (slower, fewer enemies)
+  // Demo / attract tuning (slower, fewer enemies, predictive jumping)
   const DEMO = {
-    speedTarget: 3.2,
+    speedTarget: 2.8,
     maxObstacles: 2,
-    minGapPx: 220,
-    spawnMin: 1100,
-    spawnMax: 1600,
-    jumpCooldownMs: 600,
-    leadGround: 210,      // distance lead for ground threats
-    leadFly: 170,          // distance lead for flying threats
-    leadSpeedMul: 18,      // scale lead by speed
+    minGapPx: 260,
+    spawnMin: 1200,
+    spawnMax: 1700,
+    jumpCooldownMs: 650,
+    horizonFrames: 180,   // simulate up to 3s ahead @60fps
     jumpVy: -9.6
   };
   let demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax);
@@ -298,7 +297,7 @@
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
-  // ---------- Update: Attract (Preview) Mode — slower + fewer enemies ----------
+  // ---------- Update: Attract (Preview) Mode — predictive jumping ----------
   function updateAttract(dts, dt){
     // Ease speed to chill target
     STATE.speed += (DEMO.speedTarget - STATE.speed) * 0.08 * dts;
@@ -315,8 +314,8 @@
       demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax);
     }
 
-    // Auto-run + predictive auto-jump
-    const now = performance.now();
+    // Predictive auto-jump: jump ONLY if not jumping causes a collision
+    const nowMs = performance.now();
     if (!PLAYER.onGround){
       PLAYER.vy += STATE.gravity * dts * 0.5;
       PLAYER.y  += PLAYER.vy * dts;
@@ -327,13 +326,11 @@
 
       const o = nextObstacleAhead();
       if (o){
-        const dx = o.x - (PLAYER.x + PLAYER.w);
-        const flyClear = (o.type !== 'sword_squirrel') && ((o.y + o.h) < (PLAYER.y + 10));
-        const base = (o.type === 'sword_squirrel') ? DEMO.leadGround : DEMO.leadFly;
-        const lead = base + STATE.speed * DEMO.leadSpeedMul; // larger distance at higher speed
-
-        if (!flyClear && dx > 0 && dx < lead && (now - lastJumpAt) > DEMO.jumpCooldownMs){
-          PLAYER.vy = DEMO.jumpVy; PLAYER.onGround = false; lastJumpAt = now;
+        // Only consider nearest obstacle; simulate future frames
+        const willHitIfNoJump = predictCollisionForObstacle(o, false);
+        const willHitIfJump   = predictCollisionForObstacle(o, true);
+        if (willHitIfNoJump && !willHitIfJump && (nowMs - lastJumpAt) > DEMO.jumpCooldownMs){
+          PLAYER.vy = DEMO.jumpVy; PLAYER.onGround = false; lastJumpAt = nowMs;
         }
       }
     }
@@ -349,6 +346,48 @@
     const demoScore = Math.floor((performance.now()/1000) % 9999);
     scoreEl.textContent = fmt(demoScore);
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
+  }
+
+  function predictCollisionForObstacle(o, jumpNow){
+    // Clone a tiny local state and simulate ahead
+    let px = PLAYER.x, pw = PLAYER.w, ph = 40; // stand height in demo
+    let py = groundTop(ph);
+    let vy = jumpNow ? DEMO.jumpVy : 0;
+    let onGround = !jumpNow;
+
+    let ox = o.x;
+    for (let f = 0; f < DEMO.horizonFrames; f++){
+      // advance obstacle horizontally as in game (per-frame step)
+      ox -= STATE.speed;
+
+      // player vertical motion
+      if (!onGround){
+        vy += STATE.gravity * 0.5; // same as dts=1 frame
+        py += vy;
+        if (py >= groundTop(ph)) { py = groundTop(ph); vy = 0; onGround = true; }
+      }
+
+      const pb = { x: px+6, y: py+6, w: pw-12, h: ph-12 };
+      const ob = futureObstacleBox(o, ox, f);
+
+      if (hit(pb, ob)) return true;
+      if (ox + ob.w < px - 20) return false; // passed safely
+    }
+    return false;
+  }
+
+  function futureObstacleBox(o, futureX, f){
+    if (o.type === 'squirrel'){
+      // predict flying squirrel bob
+      const t = ((performance.now() + f*FRAME_MS) - o.born) / o.period;
+      const y = o.baseY + Math.sin(t * Math.PI * 2) * o.amp;
+      const p = 2;
+      return { x: futureX+p, y: y+p, w: o.w-2*p, h: o.h-2*p };
+    } else {
+      // sword squirrel: static y
+      const L = o._inset;
+      return { x: futureX + L.left, y: o.y + L.top, w: o.w - L.left - L.right, h: o.h - L.top - L.bot };
+    }
   }
 
   function farEnoughFromLast(minGap){
@@ -414,6 +453,7 @@
     return {
       type: 'sword_squirrel',
       x: W + 10, y, w, h,
+      _inset: inset,
       box(){
         return {
           x: this.x + inset.left,
@@ -441,6 +481,7 @@
     const w = 52, h = 40;
     return {
       type:'squirrel', x: W+10, y: baseY, w, h,
+      baseY, amp, period, born,
       box(){ const p = 2; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },
       draw(){
         const t = (performance.now() - born) / period;
