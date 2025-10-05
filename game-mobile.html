@@ -2,212 +2,258 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
   <title>Bean Run — Mobile</title>
   <style>
-    :root{ --hud:#eee; --shadow:rgba(0,0,0,.35);}    
-    html, body { height: 100%; }
-    body { margin:0; background:#0b1a22; overflow:hidden; touch-action: manipulation; }
-    /* Fullscreen game wrap */
-    .game-wrap { position: fixed; inset: 0; background:#111; }
-    canvas { position:absolute; inset:0; width:100vw; height:100dvh; display:block; image-rendering: pixelated; image-rendering: crisp-edges; }
-    /* Minimal HUD */
-    .hud { position:absolute; inset:0; pointer-events:none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:var(--hud); }
-    .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
-    .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; }
-    .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-    .card { background:rgba(0,0,0,.35); backdrop-filter: blur(2px); color:#eee; border:1px solid #ffffff1a; border-radius:10px; padding:14px 18px; text-align:center; box-shadow:0 8px 20px var(--shadow); }
-    .sub { font-size:.92rem; opacity:.9; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #0b1a22;
+      touch-action: none;
+    }
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #eee;
+    }
+    .hud .hi {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      opacity: 0.85;
+      text-shadow: 0 1px 0 #0008;
+    }
+    .hud .score {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-weight: 700;
+      text-shadow: 0 1px 0 #0008;
+    }
+    .center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(3px);
+      color: #eee;
+      border: 1px solid #ffffff1a;
+      border-radius: 10px;
+      padding: 14px 18px;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,.5);
+    }
     .blink { animation: blink 1.6s infinite; }
-    @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:.95} }
+    @keyframes blink {
+      0%, 100% { opacity: .3; }
+      50% { opacity: 1; }
+    }
   </style>
 </head>
-<body class="mobile-game">
-  <div class="game-wrap">
-    <canvas id="game" width="800" height="480" tabindex="0" aria-label="Bean Run Mobile"></canvas>
-    <div class="hud">
-      <div class="hi" id="hi">HI 00000</div>
-      <div class="score" id="score">00000</div>
-      <div class="center" id="center">
-        <div class="card start">
-          <h2 style="margin:.25rem 0 .25rem">Bean Run — Mobile</h2>
-          <p class="sub" style="margin:.1rem 0 .5rem">Tap to jump. Press and hold bottom half to duck.</p>
-          <div class="sub blink">Tap anywhere to start</div>
-        </div>
+<body>
+  <canvas id="game" width="800" height="480"></canvas>
+  <div class="hud">
+    <div class="hi" id="hi">HI 00000</div>
+    <div class="score" id="score">00000</div>
+    <div class="center" id="center">
+      <div class="card">
+        <h2>Bean Run — Mobile</h2>
+        <p>Tap anywhere to jump<br>Hold bottom to duck</p>
+        <div class="blink">Tap to Start</div>
       </div>
     </div>
   </div>
 
   <script>
-  // ===== Bean Run — Mobile Build (fullscreen, no navbar) =====
-  // This version fills the viewport and uses touch-only controls.
-
-  // Canvas + sizing
+  // ---------- Setup ----------
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  let W = canvas.width, H = canvas.height; // will be resized to viewport
-
-  function resize(){
-    const vw = Math.max(320, Math.floor(window.innerWidth));
-    const vh = Math.max(240, Math.floor(window.innerHeight));
-    // Low-DPI internal size for consistent physics; CSS scales to device
-    canvas.width = Math.min(960, vw);  // clamp so physics remains sane
-    canvas.height = Math.min(540, vh);
-    W = canvas.width; H = canvas.height;
-    // Update ground on resize
-    GROUND_Y = H - 56; // a bit taller ground on mobile for readability
-    PLAYER.y = groundTop(PLAYER.h);
-  }
-
-  // HUD
-  const scoreEl = document.getElementById('score');
-  const hiEl = document.getElementById('hi');
-  const centerEl = document.getElementById('center');
-  const fmt = n => n.toString().padStart(5,'0');
-
-  // State
-  const STATE = {
-    started:false, paused:false, over:false,
-    last:0, speed:5,
-    score:0, hi: Number(sessionStorage.getItem('bean_hi') || 0),
-    gravity: 1.05
-  };
-
-  // World
+  let W = canvas.width, H = canvas.height;
   let GROUND_Y = H - 56, GROUND_H = 22;
   const BEAN_FOOT_SINK = 4;
   const groundTop = (h) => GROUND_Y - h + BEAN_FOOT_SINK;
 
-  const PLAYER = { x:Math.floor(0.18*W), y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
+  const STATE = { started:false, over:false, last:0, speed:5, gravity:1.05, score:0, hi:0 };
+  const PLAYER = { x:80, y:0, w:44, h:40, vy:0, duck:false, onGround:true };
+  PLAYER.y = groundTop(PLAYER.h);
   const obstacles = [];
-  let spawnCooldown = 950; // ms until next obstacle (play mode)
-
-  // Demo / attract (predictive, slower, fewer enemies)
-  const DEMO = {
-    speedTarget: 2.6,
-    maxObstacles: 2,
-    minGapPx: 260,
-    spawnMin: 1300,
-    spawnMax: 1800,
-    jumpCooldownMs: 650,
-    horizonFrames: 150,
-    jumpVy: -9.2
+  const fmt = n => n.toString().padStart(5,'0');
+  const scoreEl = document.getElementById('score');
+  const hiEl = document.getElementById('hi');
+  const centerEl = document.getElementById('center');
+  const IMG = {
+    beanRun:new Image(), beanDuck:new Image(),
+    squirrel:new Image(), swordSquirrel:new Image()
   };
-  let demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax);
-  let lastJumpAt = 0;
+  IMG.beanRun.src='img/bean_run.png';
+  IMG.beanDuck.src='img/bean_duck.png';
+  IMG.squirrel.src='img/squirrel.png';
+  IMG.swordSquirrel.src='img/swordsquirrel.png';
 
-  // ---------- Assets (single-frame sprites) ----------
-  const IMG = { beanRun:new Image(), beanDuck:new Image(), squirrel:new Image(), swordSquirrel:new Image() };
-  IMG.beanRun.src = 'img/bean_run.png';
-  IMG.beanDuck.src = 'img/bean_duck.png';
-  IMG.squirrel.src = 'img/squirrel.png';
-  IMG.swordSquirrel.src = 'img/swordsquirrel.png';
-
-  // ---------- Forest Parallax (lighter sky for contrast) ----------
-  const BG = makeForestBackground();
-  function makeForestBackground(){
-    const layers = [
-      makeLayer({speedMul:0.22, hue:'#50915a', trunk:'#37623c', baseH:44, scale:0.95, jitterY:6,  step:26}),
-      makeLayer({speedMul:0.42, hue:'#3e864f', trunk:'#2f613b', baseH:56, scale:1.18, jitterY:8,  step:24}),
-      makeLayer({speedMul:0.70, hue:'#2f7a45', trunk:'#255d36', baseH:66, scale:1.38, jitterY:10, step:22}),
+  // ---------- Background ----------
+  let forestLayers = [];
+  function makeForest() {
+    forestLayers = [];
+    const baseH = H;
+    const defs = [
+      {speed:0.2, hue:'#4a9557', trunk:'#33643b', scale:0.9},
+      {speed:0.4, hue:'#3e864f', trunk:'#2f613b', scale:1.2},
+      {speed:0.7, hue:'#2f7a45', trunk:'#255d36', scale:1.4},
     ];
-    let skyGrad;
-    return {
-      update(dts, worldSpeed){ for(const L of layers){ L.offset -= worldSpeed * L.speedMul * dts; if (L.offset <= -L.canvas.width) L.offset += L.canvas.width; } },
-      draw(ctx){
-        if (!skyGrad){ skyGrad = ctx.createLinearGradient(0,0,0,H); skyGrad.addColorStop(0,'#d4ecff'); skyGrad.addColorStop(1,'#b6defd'); }
-        ctx.fillStyle = skyGrad; ctx.fillRect(0,0,W,H);
-        ctx.imageSmoothingEnabled = false;
-        for(const L of layers){ const x1=Math.floor(L.offset), x2=x1+L.canvas.width; ctx.drawImage(L.canvas,x1,0); ctx.drawImage(L.canvas,x2,0); }
-        ctx.fillStyle = '#20331f'; ctx.fillRect(0, GROUND_Y, W, H-GROUND_Y);
+    for (const d of defs) {
+      const c = document.createElement('canvas');
+      c.width = W * 2; c.height = H;
+      const g = c.getContext('2d');
+      const base = GROUND_Y;
+      for (let x=-20;x<c.width;x+=24){
+        const s = d.scale*(0.8+Math.random()*0.4);
+        drawTree(g, x, base, Math.floor(48*s), d.hue, d.trunk);
       }
-    };
-    function makeLayer(opts){
-      const c = document.createElement('canvas'); const g = c.getContext('2d'); c.width = Math.max(640, W); c.height = H;
-      const base = ()=>GROUND_Y; const step=opts.step||24;
-      for (let x=-20; x<c.width+40; x+=step){
-        const s = opts.scale*(0.9+Math.random()*0.35); const y = base()+Math.floor((Math.random()*opts.jitterY)-(opts.jitterY*0.5));
-        const cluster = 2 + (Math.random() < 0.6 ? 1 : 0);
-        for (let i=0;i<cluster;i++){ drawPine(g, Math.floor(x + (i-0.5)*10), y, Math.floor((opts.baseH||48)*s*(1+i*0.05)), opts.hue, opts.trunk ); }
-      }
-      return {canvas:c, offset:0, speedMul:opts.speedMul};
+      forestLayers.push({c, offset:0, speed:d.speed});
     }
-    function drawPine(g, x, baseY, h, leaf, trunk){ const w=Math.max(12,Math.floor(h*0.42)), tw=Math.max(3,Math.floor(w*0.18)), th=Math.max(5,Math.floor(h*0.22)), top=baseY-h; g.fillStyle=leaf; const tiers=3; for(let t=0;t<tiers;t++){ const ty=Math.floor(top+(t/tiers)*h*0.78), bw=Math.floor(w - t*(w*0.22)); drawIsoTri(g,x,ty,bw,Math.floor(h*0.34)); } g.fillStyle=trunk; g.fillRect(Math.floor(x-tw/2), Math.floor(baseY-th), tw, th); }
-    function drawIsoTri(g,cx,ty,bw,h){ const half=Math.floor(bw/2); g.beginPath(); g.moveTo(Math.floor(cx),Math.floor(ty)); g.lineTo(Math.floor(cx-half),Math.floor(ty+h)); g.lineTo(Math.floor(cx+half),Math.floor(ty+h)); g.closePath(); g.fill(); }
+  }
+  function drawTree(g,x,base,h,leaf,trunk){
+    const w=h*0.4;
+    g.fillStyle=leaf;
+    g.beginPath();
+    g.moveTo(x, base-h);
+    g.lineTo(x-w/2, base);
+    g.lineTo(x+w/2, base);
+    g.closePath();
+    g.fill();
+    g.fillStyle=trunk;
+    g.fillRect(x-2, base, 4, 10);
   }
 
-  // ---------- Input (touch)
-  function startGame(){ STATE.started = true; STATE.over = false; STATE.paused = false; STATE.score=0; STATE.speed=5; obstacles.length=0; spawnCooldown=900; lastJumpAt=0; Object.assign(PLAYER,{ y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true}); centerEl.style.display='none'; }
-  const startIfReady = ()=>{ if (!STATE.started || STATE.over) startGame(); };
-  function jump(){ if (!STATE.started || STATE.paused || STATE.over) return; if (PLAYER.onGround){ PLAYER.vy = -10.2; PLAYER.onGround = false; PLAYER.duck = false; } }
-  function setDuck(d){ if (!STATE.started || STATE.paused || STATE.over) return; PLAYER.duck = !!d; }
-  window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', ()=> setTimeout(resize, 250));
+  function drawForest(dts, speed){
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#d4ecff'); grad.addColorStop(1,'#b6defd');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+    for (const L of forestLayers){
+      L.offset -= speed*L.speed*dts;
+      if (L.offset <= -W) L.offset += W;
+      ctx.drawImage(L.c, L.offset, 0);
+      ctx.drawImage(L.c, L.offset + W, 0);
+    }
+    ctx.fillStyle = '#20331f';
+    ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
+  }
 
-  // Touch controls: tap to jump; press/hold bottom-half to duck
+  // ---------- Resize ----------
+  function resize(){
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+    GROUND_Y = H - 56;
+    makeForest();
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', ()=>setTimeout(resize,250));
+  resize();
+
+  // ---------- Controls ----------
+  function startGame(){
+    STATE.started=true; STATE.over=false;
+    STATE.score=0; STATE.speed=5; obstacles.length=0;
+    Object.assign(PLAYER,{vy:0,onGround:true,duck:false});
+    PLAYER.y=groundTop(PLAYER.h);
+    centerEl.style.display='none';
+  }
+
+  function jump(){
+    if (PLAYER.onGround){
+      PLAYER.vy=-10.5; PLAYER.onGround=false; PLAYER.duck=false;
+    }
+  }
+
+  function setDuck(d){ PLAYER.duck=!!d; }
+
   canvas.addEventListener('touchstart', (e)=>{
-    if (!STATE.started || STATE.over){ startGame(); return; }
-    const t = e.touches[0]; const y = t.clientY;
-    if (y > window.innerHeight*0.65){ setDuck(true); } else { jump(); }
+    e.preventDefault();
+    const touch = e.touches[0];
+    const y = touch.clientY;
+    if (!STATE.started || STATE.over){
+      startGame();
+      jump();
+      return;
+    }
+    if (y > window.innerHeight*0.85) setDuck(true);
+    else jump();
   }, {passive:false});
-  canvas.addEventListener('touchend', ()=> setDuck(false), {passive:true});
+  canvas.addEventListener('touchend', ()=>setDuck(false));
 
   // ---------- Loop ----------
   requestAnimationFrame(loop);
-  function loop(now){ const dt=Math.min(32, now-STATE.last); const dts=dt/(1000/60); STATE.last=now; if (!STATE.paused){ if (STATE.started) updatePlay(dts,dt); else updateAttract(dts,dt); draw(); } requestAnimationFrame(loop); }
+  function loop(now){
+    const dt = Math.min(32, now - STATE.last);
+    const dts = dt / (1000/60);
+    STATE.last = now;
 
-  function updatePlay(dts, dt){
-    if (STATE.score < 300) STATE.speed += 0.0004 * dts; else if (STATE.score < 800) STATE.speed += 0.0007*dts; else STATE.speed += 0.001*dts;
-    BG.update(dts, STATE.speed);
-    spawnCooldown -= dt; if (spawnCooldown<=0){ spawnObstacle(); spawnCooldown = rand(currentGapMin(), currentGapMax()); }
-    if (!PLAYER.onGround){ PLAYER.vy += STATE.gravity * dts * 0.5; PLAYER.y += PLAYER.vy * dts; if (PLAYER.y >= groundTop(PLAYER.h)){ PLAYER.y = groundTop(PLAYER.h); PLAYER.vy=0; PLAYER.onGround=true; } }
-    else if (PLAYER.duck){ PLAYER.h = 32; PLAYER.y = groundTop(PLAYER.h); }
-    else { PLAYER.h = 40; PLAYER.y = groundTop(PLAYER.h); }
-    for (let i = obstacles.length - 1; i >= 0; i--){ const o = obstacles[i]; o.x -= STATE.speed * dts; if (o.x + o.w < -10) { obstacles.splice(i,1); continue; } if (hit(playerBox(), o.box())) { return gameOver(); } }
-    STATE.score += 0.35 * dts; scoreEl.textContent = fmt(Math.floor(STATE.score)); hiEl.textContent = 'HI ' + fmt(STATE.hi);
+    update(dts);
+    draw(dts);
+    requestAnimationFrame(loop);
   }
 
-  function updateAttract(dts, dt){ STATE.speed += (DEMO.speedTarget - STATE.speed) * 0.08 * dts; BG.update(dts, STATE.speed); demoCooldown -= dt; if (demoCooldown<=0){ if (obstacles.length < DEMO.maxObstacles && farEnoughFromLast(DEMO.minGapPx)) spawnObstacleDemo(); demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax); }
-    const nowMs = performance.now();
-    if (!PLAYER.onGround){ PLAYER.vy += STATE.gravity * dts * 0.5; PLAYER.y += PLAYER.vy * dts; if (PLAYER.y >= groundTop(PLAYER.h)){ PLAYER.y=groundTop(PLAYER.h); PLAYER.vy=0; PLAYER.onGround=true; } }
-    else { PLAYER.h=40; PLAYER.y=groundTop(PLAYER.h); const o = nextObstacleAhead(); if (o){ const willHit = predictCollisionForObstacle(o,false); const willHitIfJump = predictCollisionForObstacle(o,true); if (willHit && !willHitIfJump && (nowMs - lastJumpAt) > DEMO.jumpCooldownMs){ PLAYER.vy=DEMO.jumpVy; PLAYER.onGround=false; lastJumpAt=nowMs; } } }
-    for (let i=obstacles.length-1;i>=0;i--){ const o=obstacles[i]; o.x -= STATE.speed * dts; if (o.x + o.w < -10) obstacles.splice(i,1); }
-    const demoScore = Math.floor((performance.now()/1000) % 9999); scoreEl.textContent = fmt(demoScore); hiEl.textContent = 'HI ' + fmt(STATE.hi);
+  function update(dts){
+    if (!STATE.started) return;
+
+    STATE.speed += 0.0006 * dts;
+    drawForest(dts, STATE.speed);
+
+    // Gravity
+    if (!PLAYER.onGround){
+      PLAYER.vy += STATE.gravity * dts * 0.5;
+      PLAYER.y += PLAYER.vy * dts;
+      if (PLAYER.y >= groundTop(PLAYER.h)){
+        PLAYER.y = groundTop(PLAYER.h);
+        PLAYER.vy=0;
+        PLAYER.onGround=true;
+      }
+    } else if (PLAYER.duck){
+      PLAYER.h=32; PLAYER.y=groundTop(PLAYER.h);
+    } else {
+      PLAYER.h=40; PLAYER.y=groundTop(PLAYER.h);
+    }
   }
 
-  function predictCollisionForObstacle(o, jumpNow){ let px=PLAYER.x, pw=PLAYER.w, ph=40, py=groundTop(ph), vy= jumpNow? DEMO.jumpVy:0, onGround=!jumpNow; let ox=o.x; for (let f=0; f<DEMO.horizonFrames; f++){ ox -= STATE.speed; if (!onGround){ vy += STATE.gravity * 0.5; py += vy; if (py >= groundTop(ph)) { py=groundTop(ph); vy=0; onGround=true; } } const pb={x:px+6,y:py+6,w:pw-12,h:ph-12}; const ob=futureObstacleBox(o,ox,f); if (hit(pb,ob)) return true; if (ox + ob.w < px-20) return false; } return false; }
-  function futureObstacleBox(o, futureX, f){ if (o.type==='squirrel'){ const t=((performance.now()+f*16.67)-o.born)/o.period; const y=o.baseY + Math.sin(t*Math.PI*2)*o.amp; const p=2; return {x:futureX+p,y:y+p,w:o.w-2*p,h:o.h-2*p}; } else { const L=o._inset; return {x:futureX+L.left, y:o.y+L.top, w:o.w-L.left-L.right, h:o.h-L.top-L.bot}; } }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    drawForest(1, STATE.speed);
+    drawGround();
+    drawPlayer();
+  }
 
-  function farEnoughFromLast(minGap){ let rightMost=-Infinity; for (const o of obstacles){ rightMost = Math.max(rightMost, o.x + o.w); } return (W - rightMost) > minGap; }
-  function nextObstacleAhead(){ let best=null, bestDx=Infinity; for (const o of obstacles){ const dx = o.x - (PLAYER.x + PLAYER.w); if (dx>0 && dx<bestDx){ best=o; bestDx=dx; } } return best; }
+  function drawGround(){
+    ctx.fillStyle='#3a3328';
+    ctx.fillRect(0,GROUND_Y,W,GROUND_H);
+    ctx.fillStyle='#4a4238';
+    const seg=24, off=Math.floor((performance.now()/30)%seg);
+    for(let x=-off;x<W;x+=seg)
+      ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3);
+  }
 
-  function gameOver(){ STATE.over=true; STATE.started=false; const s=Math.floor(STATE.score); if (s>STATE.hi){ STATE.hi=s; sessionStorage.setItem('bean_hi', String(s)); } scoreEl.textContent=fmt(s); hiEl.textContent='HI '+fmt(STATE.hi); centerEl.style.display='flex'; centerEl.querySelector('.card').innerHTML = `<h2>Game Over</h2><div>Score: ${fmt(s)}</div><div class="sub" style="margin-top:.25rem">Tap to retry</div>`; obstacles.length=0; demoCooldown = rand(DEMO.spawnMin, DEMO.spawnMax); STATE.speed = DEMO.speedTarget; lastJumpAt=0; }
-
-  // ---------- Obstacles ----------
-  function spawnObstacle(){ let type=0; if (STATE.score>180){ const flyerChance = STATE.score>500 ? 0.45 : 0.25; type = Math.random() < flyerChance ? 1 : 0; } obstacles.push(type===0 ? SwordSquirrel() : Squirrel()); }
-  function spawnObstacleDemo(){ const type = Math.random() < 0.65 ? 0 : 1; obstacles.push(type===0 ? SwordSquirrel() : Squirrel()); }
-  function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
-  function currentGapMax(){ return STATE.score < 150 ? 1500 : STATE.score < 350 ? 1300 : STATE.score < 700 ? 1100 : 950; }
-
-  function SwordSquirrel(){ const SPRITE_W=64, SPRITE_H=64, SCALE=0.70; const w=Math.round(SPRITE_W*SCALE), h=Math.round(SPRITE_H*SCALE); const y=GROUND_Y - h + 6; const inset={left:Math.round(w*0.12), right:Math.round(w*0.10), top:Math.round(h*0.14), bot:Math.round(h*0.08)}; return { type:'sword_squirrel', x:W+10, y, w, h, _inset:inset, box(){ return { x:this.x+inset.left, y:this.y+inset.top, w:this.w-inset.left-inset.right, h:this.h-inset.top-inset.bot }; }, draw(){ ctx.imageSmoothingEnabled=false; drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0); } }; }
-  function Squirrel(){ const lanes=[GROUND_Y-80, GROUND_Y-120]; const baseY=lanes[Math.floor(Math.random()*lanes.length)]; const amp=8+Math.random()*8; const period=1000+Math.random()*500; const born=performance.now(); const w=52,h=40; return { type:'squirrel', x:W+10, y:baseY, w, h, baseY, amp, period, born, box(){ const p=2; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; }, draw(){ const t=(performance.now()-born)/period; const bob=Math.sin(t*Math.PI*2)*amp; const tilt=Math.sin(t*Math.PI*2)*0.12; this.y=baseY + bob; if (IMG.squirrel.complete){ drawImage(IMG.squirrel, this.x, this.y, this.w, this.h, tilt); } else { ctx.fillStyle='#1b1b1b'; ctx.fillRect(this.x, this.y+this.h-4, this.w, 4); ctx.fillStyle='#111'; ctx.fillRect(this.x+6, this.y+8, this.w-12, this.h-12); ctx.fillStyle='#700'; ctx.fillRect(this.x+2, this.y+6, 12, 6); ctx.fillStyle='#700'; ctx.fillRect(this.x+this.w-14, this.y+6, 12, 6); ctx.fillStyle='#111'; ctx.fillRect(this.x+this.w-10, this.y+8, 8, 6); } } }; }
-
-  // ---------- Collision ----------
-  const playerBox = () => { const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
-  const hit = (a,b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-
-  // ---------- Render ----------
-  function draw(){ ctx.clearRect(0,0,W,H); BG.draw(ctx); drawGround(); drawPlayer(); for (const o of obstacles){ o.draw(); } }
-  function drawGround(){ ctx.fillStyle='#3a3328'; ctx.fillRect(0,GROUND_Y,W,GROUND_H); ctx.fillStyle='#4a4238'; const seg=24, off=Math.floor((performance.now()/30)%seg); for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); } }
-  function drawPlayer(){ const img = (PLAYER.duck && STATE.started) ? IMG.beanDuck : IMG.beanRun; drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h, 0); }
-
-  // helpers
-  function drawImage(img, x, y, w, h, rot){ ctx.save(); ctx.imageSmoothingEnabled=false; ctx.translate(x+w/2, y+h/2); if (rot) ctx.rotate(rot); ctx.drawImage(img, 0,0, img.width, img.height, -w/2, -h/2, w, h); ctx.restore(); }
-  function rand(min,max){ return Math.random()*(max-min)+min; }
-
-  // Boot
-  resize();
-  requestAnimationFrame(()=>{ try{ canvas.focus(); }catch{} });
+  function drawPlayer(){
+    const img=(PLAYER.duck&&STATE.started)?IMG.beanDuck:IMG.beanRun;
+    ctx.drawImage(img,PLAYER.x,PLAYER.y,PLAYER.w,PLAYER.h);
+  }
   </script>
 </body>
 </html>
