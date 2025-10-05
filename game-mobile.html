@@ -20,8 +20,8 @@
     /* Portrait rotate prompt */
     #rotate { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.85); color:#fff; z-index:9999; text-align:center; padding:24px;
       font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"; }
-    #rotate .box { border:1px solid #ffffff22; border-radius:14px; padding:18px 20px; max-width:520px; background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03)); box-shadow:0 12px 28px rgba(0,0,0,.55); }
-    #rotate h2 { margin:0 0 .35rem; font-size:1.25rem } #rotate p { margin:.25rem 0 0; opacity:.85 }
+    #rotate .box { border:1px solid #ffffff22; border-radius:14px; padding:18px 20px; max-width:560px; background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03)); box-shadow:0 12px 28px rgba(0,0,0,.55); }
+    #rotate h2 { margin:0 0 .35rem; font-size:1.25rem } #rotate p { margin:.25rem 0 0; opacity:.9; line-height:1.35 }
     @media (orientation: portrait) { #rotate { display:flex; } }
     @media (orientation: landscape) { #rotate { display:none; } }
   </style>
@@ -35,8 +35,8 @@
     <div class="center" id="center">
       <div class="card">
         <h2 style="margin:.25rem 0">Bean Run — Mobile</h2>
-        <div>Tap to jump • Hold bottom edge to duck</div>
-        <div style="margin-top:.35rem; opacity:.8">For best experience, rotate to landscape.</div>
+        <div>Controls: <strong>Hold LEFT = Duck</strong> • <strong>Tap RIGHT = Jump</strong></div>
+        <div style="margin-top:.35rem; opacity:.8">For best experience, rotate your phone to landscape.</div>
         <div class="blink" style="margin-top:.65rem">Tap to Start</div>
       </div>
     </div>
@@ -46,7 +46,7 @@
   <div id="rotate">
     <div class="box">
       <h2>Turn your phone sideways</h2>
-      <p>Bean runs best in <strong>landscape</strong>. Rotate to play.</p>
+      <p><strong>Landscape</strong> recommended.<br/>Controls: <strong>Hold LEFT = Duck</strong>, <strong>Tap RIGHT = Jump</strong>.</p>
     </div>
   </div>
 
@@ -71,29 +71,30 @@
   let GROUND_Y = H-56, GROUND_H=22;
   const BEAN_FOOT_SINK = 4, groundTop = h => GROUND_Y - h + BEAN_FOOT_SINK;
 
-  const STATE = { started:false, over:false, last:0, speed:5.5, gravity:1.05, score:0, hi:Number(sessionStorage.getItem('bean_hi')||0) };
+  const STATE = { started:false, over:false, last:0, speed:6, gravity:1.05, score:0, hi:Number(sessionStorage.getItem('bean_hi')||0) };
   const scoreEl = document.getElementById('score'), hiEl = document.getElementById('hi'), centerEl = document.getElementById('center');
   const fmt = n => n.toString().padStart(5,'0');
 
   const PLAYER = { x:Math.floor(W*0.18), y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
 
-  // Obstacles (uses same sword squirrel art as desktop)
+  // Obstacles
   const obstacles = [];
   let spawnMs = 900;
 
-  // ---------- Assets ----------
-  const IMG = { beanRun:new Image(), beanDuck:new Image(), swordSquirrel:new Image() };
+  // ---------- Assets (match desktop) ----------
+  const IMG = { beanRun:new Image(), beanDuck:new Image(), squirrel:new Image(), swordSquirrel:new Image() };
   IMG.beanRun.src='img/bean_run.png';
   IMG.beanDuck.src='img/bean_duck.png';
-  IMG.swordSquirrel.src='img/swordsquirrel.png'; // same enemy sprite as main game
+  IMG.squirrel.src='img/squirrel.png';           // flying enemy
+  IMG.swordSquirrel.src='img/swordsquirrel.png'; // ground enemy
 
   // ---------- Background ----------
   let layers = null;
   function rebuildForest(){
     layers = [
-      makeLayer({speed:0.22, hue:'#50915a', trunk:'#37623c', scale:0.95, step:26}),
-      makeLayer({speed:0.42, hue:'#3e864f', trunk:'#2f613b', scale:1.18, step:24}),
-      makeLayer({speed:0.70, hue:'#2f7a45', trunk:'#255d36', scale:1.38, step:22}),
+      makeLayer({speed:0.26, hue:'#50915a', trunk:'#37623c', scale:0.95, step:26}),
+      makeLayer({speed:0.48, hue:'#3e864f', trunk:'#2f613b', scale:1.18, step:24}),
+      makeLayer({speed:0.80, hue:'#2f7a45', trunk:'#255d36', scale:1.38, step:22}),
     ];
   }
   function makeLayer(o){
@@ -112,7 +113,7 @@
   }
   function drawForest(dts, speed){
     const sky = ctx.createLinearGradient(0,0,0,H);
-    sky.addColorStop(0,'#d4ecff'); sky.addColorStop(1,'#b6defd');
+    sky.addColorStop(0,'#cfe8ff'); sky.addColorStop(1,'#a2d0ff');
     ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
     for(const L of layers){
       L.offset -= speed * L.speed * dts;
@@ -123,10 +124,11 @@
     ctx.fillStyle='#20331f'; ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
   }
 
-  // ---------- Controls ----------
+  // ---------- Controls: LEFT hold = duck, RIGHT tap = jump ----------
+  const leftTouchIds = new Set();
   function startGame(){
-    STATE.started=true; STATE.over=false; STATE.score=0; STATE.speed=5.5;
-    obstacles.length=0; spawnMs=900;
+    STATE.started=true; STATE.over=false; STATE.score=0;
+    STATE.speed=6; obstacles.length=0; spawnMs=900;
     Object.assign(PLAYER,{vy:0,onGround:true,duck:false,w:44,h:40});
     PLAYER.y = groundTop(PLAYER.h);
     centerEl.style.display='none';
@@ -142,16 +144,47 @@
        <div>Score: ${fmt(s)}</div>
        <div class="blink" style="margin-top:.5rem">Tap to Retry</div>`;
   }
-  function jump(){ if(PLAYER.onGround && STATE.started && !STATE.over){ PLAYER.vy=-10.4; PLAYER.onGround=false; PLAYER.duck=false; } }
-  function setDuck(d){ if(STATE.started && !STATE.over) PLAYER.duck=!!d; }
+  function jump(){ if(PLAYER.onGround && STATE.started && !STATE.over){ PLAYER.vy=-10.2; PLAYER.onGround=false; PLAYER.duck=false; } }
+  function setDuck(d){ if(STATE.started && !STATE.over) PLAYER.duck = !!d; }
 
-  canvas.addEventListener('touchstart', e=>{
+  function isLeft(x){ return x < window.innerWidth * 0.5; }
+
+  // Touch
+  canvas.addEventListener('touchstart', (e)=>{
     e.preventDefault();
-    const y=e.touches[0].clientY;
-    if(!STATE.started || STATE.over){ startGame(); jump(); return; }
-    if(y > innerHeight*0.85) setDuck(true); else jump();
+    if(!STATE.started || STATE.over){ startGame(); }
+    for(const t of Array.from(e.changedTouches)){
+      if(isLeft(t.clientX)){
+        leftTouchIds.add(t.identifier);
+        setDuck(true);
+      }else{
+        jump();
+      }
+    }
   }, {passive:false});
-  canvas.addEventListener('touchend', ()=> setDuck(false), {passive:true});
+
+  canvas.addEventListener('touchend', (e)=>{
+    for(const t of Array.from(e.changedTouches)){
+      leftTouchIds.delete(t.identifier);
+    }
+    if(leftTouchIds.size===0) setDuck(false);
+  }, {passive:true});
+
+  canvas.addEventListener('touchcancel', (e)=>{
+    for(const t of Array.from(e.changedTouches)){
+      leftTouchIds.delete(t.identifier);
+    }
+    if(leftTouchIds.size===0) setDuck(false);
+  }, {passive:true});
+
+  // (Optional) Mouse fallback for desktop testing
+  let mouseDuck=false;
+  canvas.addEventListener('mousedown', (e)=>{
+    if(!STATE.started || STATE.over){ startGame(); }
+    const x = e.clientX;
+    if(isLeft(x)){ mouseDuck=true; setDuck(true); } else { jump(); }
+  });
+  addEventListener('mouseup', ()=>{ if(mouseDuck){ mouseDuck=false; setDuck(false); } });
 
   // ---------- Loop ----------
   requestAnimationFrame(loop);
@@ -165,29 +198,34 @@
 
   function update(dts, dt){
     if(STATE.started && !STATE.over){
-      STATE.speed += 0.0007 * dts;
+      // modest speed ramp + score
+      if (STATE.score < 300) STATE.speed += 0.0005 * dts;
+      else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
+      else STATE.speed += 0.0011 * dts;
+
       STATE.score += 0.35 * dts;
     }
 
-    // bean physics
+    // physics
     if(!PLAYER.onGround){
       PLAYER.vy += STATE.gravity * dts * 0.5;
       PLAYER.y  += PLAYER.vy * dts;
       if(PLAYER.y >= groundTop(PLAYER.h)){ PLAYER.y=groundTop(PLAYER.h); PLAYER.vy=0; PLAYER.onGround=true; }
-    }else if(PLAYER.duck){ PLAYER.h=32; PLAYER.y=groundTop(PLAYER.h); }
+    } else if(PLAYER.duck){ PLAYER.h=32; PLAYER.y=groundTop(PLAYER.h); }
     else { PLAYER.h=40; PLAYER.y=groundTop(PLAYER.h); }
 
-    // spawn sword squirrels (same enemy as desktop)
+    // parallax
+    drawForest(0,0); // (no-op update here—draw handles movement)
+    // spawn
     if(STATE.started && !STATE.over){
       spawnMs -= dt;
-      if(spawnMs<=0){ obstacles.push(SwordSquirrel()); spawnMs = rand(gapMin(), gapMax()); }
+      if(spawnMs<=0){ spawnObstacle(); spawnMs = rand(currentGapMin(), currentGapMax()); }
     }
-
     // move + collide
     for(let i=obstacles.length-1;i>=0;i--){
       const o=obstacles[i];
       o.x -= STATE.speed * dts;
-      o.update && o.update(dts, dt);
+      if (o.update) o.update(dts, dt);
       if(o.x + o.w < -10){ obstacles.splice(i,1); continue; }
       if (hit(playerBox(), o.box())) { gameOver(); break; }
     }
@@ -197,48 +235,43 @@
     hiEl.textContent    = 'HI ' + fmt(STATE.hi);
   }
 
-  // Desktop-like squirrel behavior: forward glide with subtle bob + occasional dive
+  // ---------- Obstacles (desktop-style) ----------
+  function spawnObstacle(){
+    let type = 0; // ground sword-squirrel default
+    if (STATE.score > 180){
+      const flyerChance = STATE.score > 500 ? 0.45 : 0.25;
+      type = Math.random() < flyerChance ? 1 : 0;
+    }
+    obstacles.push(type === 0 ? SwordSquirrel() : Squirrel());
+  }
+
+  function currentGapMin(){ return STATE.score < 150 ? 900 : STATE.score < 350 ? 750 : STATE.score < 700 ? 600 : 480; }
+  function currentGapMax(){ return STATE.score < 150 ?1500 : STATE.score < 350 ?1300 : STATE.score < 700 ?1100 : 950; }
+
   function SwordSquirrel(){
-    const baseLaneHi = GROUND_Y - 120;
-    const baseLaneLo = GROUND_Y - 80;
-    const startY = Math.random()<0.5 ? baseLaneLo : baseLaneHi;
-    const w=64, h=48;
-    const born = performance.now();
-    // randomize movement “feel” to match desktop vibe
-    const bobAmp = 6 + Math.random()*10;
-    const bobPeriod = 900 + Math.random()*500;
-    const willDive = Math.random() < 0.25;       // sometimes force a jump
-    const diveDelay = 300 + Math.random()*500;   // ms after entering screen
-    const diveDur = 260 + Math.random()*200;     // dive window
-
+    const SPRITE_W=64, SPRITE_H=64, SCALE=0.70;
+    const w=Math.round(SPRITE_W*SCALE), h=Math.round(SPRITE_H*SCALE);
+    const y = GROUND_Y - h + 6;
+    const inset = { left:Math.round(w*0.12), right:Math.round(w*0.10), top:Math.round(h*0.14), bot:Math.round(h*0.08) };
     return {
-      type:'swordSquirrel', x: W+10, y:startY, w, h,
-      box(){ const p=6; return {x:this.x+p,y:this.y+p,w:this.w-2*p,h:this.h-2*p}; },
-      update(){
-        const t = performance.now() - born;
-        // sine bob
-        this.y = startY + Math.sin(t / bobPeriod * Math.PI*2) * bobAmp;
-
-        // brief dive to lower lane (or near ground) then back up
-        if (willDive && t> diveDelay && t < diveDelay + diveDur){
-          const diveTarget = GROUND_Y - 64; // skim above ground
-          this.y += (diveTarget - this.y) * 0.25;
-        }
-      },
-      draw(){
-        if (IMG.swordSquirrel.complete){
-          drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0);
-        } else {
-          // fallback block
-          ctx.fillStyle='#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4);
-          ctx.fillStyle='#111'; ctx.fillRect(this.x+6, this.y+8, this.w-12, this.h-12);
-        }
-      }
+      type:'sword_squirrel', x:W+10, y, w, h, _inset:inset,
+      box(){ return { x:this.x+inset.left, y:this.y+inset.top, w:this.w-inset.left-inset.right, h:this.h-inset.top-inset.bot }; },
+      draw(){ drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0); }
     };
   }
 
-  function gapMin(){ const s=STATE.score; return s<150? 900 : s<350? 750 : s<700? 600 : 480; }
-  function gapMax(){ const s=STATE.score; return s<150?1500 : s<350?1300 : s<700?1100 : 950; }
+  function Squirrel(){
+    const lanes=[GROUND_Y-80, GROUND_Y-120];
+    const baseY=lanes[Math.floor(Math.random()*lanes.length)];
+    const amp=8+Math.random()*8, period=1000+Math.random()*500, born=performance.now();
+    const w=52, h=40;
+    return {
+      type:'squirrel', x:W+10, y:baseY, w, h, baseY, amp, period, born,
+      box(){ const p=2; return {x:this.x+p,y:this.y+p,w:this.w-2*p,h:this.h-2*p}; },
+      update(){ const t=(performance.now()-born)/period; this.y = baseY + Math.sin(t*Math.PI*2)*amp; this._tilt = Math.sin(t*Math.PI*2)*0.12; },
+      draw(){ drawImage(IMG.squirrel, this.x, this.y, this.w, this.h, this._tilt||0); }
+    };
+  }
 
   // ---------- Collision / Render ----------
   const playerBox = ()=>{ const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
@@ -246,16 +279,26 @@
 
   function render(dts){
     ctx.clearRect(0,0,W,H);
-    drawForest(dts, STATE.speed);
-    // ground detail
-    ctx.fillStyle='#3a3328'; ctx.fillRect(0,GROUND_Y,W,GROUND_H);
+    // background parallax draw + move
+    const sky = ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,'#cfe8ff'); sky.addColorStop(1,'#a2d0ff');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+    for(const L of layers){
+      L.offset -= STATE.speed * L.speed * dts;
+      if (L.offset <= -W) L.offset += W;
+      ctx.drawImage(L.c, Math.floor(L.offset), 0);
+      ctx.drawImage(L.c, Math.floor(L.offset+W), 0);
+    }
+    ctx.fillStyle='#20331f'; ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
+
+    // ground strip
+    ctx.fillStyle='#3a3328'; ctx.fillRect(0,GROUND_Y,W,GROU ND_H);
     ctx.fillStyle='#4a4238'; const seg=24, off=Math.floor((performance.now()/30)%seg);
-    for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
+    for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROU ND_H-6,12,3); }
 
     // player
     const img = (PLAYER.duck && PLAYER.onGround) ? IMG.beanDuck : IMG.beanRun;
-    ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
+    drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h, 0);
 
     // enemies
     for(const o of obstacles) o.draw();
