@@ -3,20 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Bean Run — Mobile (D‑pad)</title>
+  <title>Bean Run — Mobile (Dual D-pad + Compact Nav)</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Page-scoped styles only */
-    :root { --z-hud: 20; --z-dpad: 30; }
+    /* Page‑scoped styles only */
+    :root { --z-hud: 20; --z-dpad: 30; --z-nav: 60; --navH: 56px; }
     html, body { height: 100%; }
     body.game-page { overflow-x: hidden; background:#0a0f14; overscroll-behavior: none; touch-action: none; }
-    .game-section { max-width: 980px; margin: 0.75rem auto 0.5rem; padding: 0 0.5rem; }
+    .game-section { max-width: 980px; margin: calc(var(--navH) + 8px) auto 0.5rem; padding: 0 0.5rem; }
     .game-wrap { position: relative; width: 100%; max-width: 960px; aspect-ratio: 3 / 1; margin: 0.25rem auto; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 28px rgba(0,0,0,.35); background:#111; }
+    /* Landscape: give the canvas a bit more vertical room on short screens */
+    @media (orientation: landscape) and (max-height: 480px) {
+      .game-wrap { aspect-ratio: 2.2 / 1; }
+    }
     canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
     .hud { position:absolute; inset:0; pointer-events:none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee; z-index: var(--z-hud); }
     .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
     .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; padding-right: 26px; }
-    /* Lightning availability icon next to score */
     .hud .boltIcon { position:absolute; top:8px; right:8px; width:18px; height:18px; pointer-events:none; display:none; }
     .hud .boltIcon svg { width:100%; height:100%; filter: drop-shadow(0 0 2px rgba(143,211,255,0.8)); }
     .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
@@ -26,13 +29,36 @@
     .blink { animation: blink 1.6s infinite; }
     @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:1} }
 
-    /* Mobile D‑pad */
+    /* --- Compact / collapsible navbar wrapper injected from navbar.html --- */
+    #navMount { position: relative; z-index: var(--z-nav); }
+    /* collapsed (default) keeps header/nav to one row */
+    body.game-page:not(.nav-open) #navMount header,
+    body.game-page:not(.nav-open) #navMount nav {
+      max-height: 56px; overflow: clip;
+    }
+    /* expanded becomes a fixed panel that can scroll up to 70vh */
+    body.game-page.nav-open #navMount {
+      position: fixed; top: 0; left: 0; right: 0;
+      max-height: 70vh; overflow: auto; background: rgba(8,12,20,.98);
+      box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    }
+    /* burger toggle */
+    .nav-toggle {
+      position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: calc(env(safe-area-inset-left) + 8px);
+      z-index: calc(var(--z-nav) + 2);
+      background:#0b1220; color:#dbe7ff; border:1px solid #1c2742; border-radius:10px; padding:6px 10px; font-size:.95rem;
+      box-shadow: 0 6px 16px rgba(0,0,0,.45);
+    }
+
+    /* --- Dual D‑pads (left + right) --- */
     .dpad {
-      position: fixed; left: 16px; bottom: 16px;
+      position: fixed; bottom: max(12px, env(safe-area-inset-bottom) + 12px);
       width: 156px; height: 156px; z-index: var(--z-dpad);
       user-select: none; -webkit-user-select: none; pointer-events: auto;
       opacity: 0.98;
     }
+    .dpad.left  { left:  max(12px, env(safe-area-inset-left) + 12px); }
+    .dpad.right { right: max(12px, env(safe-area-inset-right) + 12px); }
     .dpad .btn {
       position: absolute; width: 64px; height: 64px; border-radius: 14px; border: none;
       display:flex; align-items:center; justify-content:center;
@@ -48,10 +74,16 @@
     .dpad .right { left: 92px; top: 46px; }
     .dpad .lbl   { position:absolute; left:0; right:0; bottom:-18px; text-align:center; font-size:.75rem; color:#cfeaff; opacity:.8; }
 
-    /* Hide D‑pad on non‑touch devices */
+    /* scale down pads in short landscape */
+    @media (orientation: landscape) and (max-height: 480px) {
+      .dpad { width: 132px; height: 132px; }
+      .dpad .btn { width: 54px; height: 54px; font-size: 22px; }
+      .dpad .down  { top: 78px; } .dpad .right { left: 78px; } .dpad .up { left: 39px; }
+    }
+
+    /* Hide pads on non-touch devices */
     .no-touch .dpad { display:none; }
 
-    /* Minimal page header text */
     .reverent-text { margin:.25rem 0 .5rem; opacity:.8; font-size:.95rem; text-align:center; }
   </style>
 </head>
@@ -59,7 +91,7 @@
 
   <main class="game-section content-box">
     <h1 class="section-title" style="text-align:center;">BEAN RUN</h1>
-    <p class="reverent-text">Mobile build — use the on‑screen D‑pad (Up = Jump, Down = Duck, Right = Lightning, Left = Pause).</p>
+    <p class="reverent-text">Mobile build — use the on-screen D-pads (Up = Jump, Down = Duck, Right = Lightning, Left = Pause).</p>
 
     <div class="game-wrap">
       <canvas id="game" width="960" height="320" tabindex="0" aria-label="Bean Run"></canvas>
@@ -82,19 +114,24 @@
     </div>
   </main>
 
-  <!-- On‑screen D‑pad -->
-  <div class="dpad" id="dpad" aria-label="Mobile controls">
-    <button class="btn up"    id="btnUp"    aria-label="Jump (Up)">▲</button>
-    <button class="btn down"  id="btnDown"  aria-label="Duck (Down)">▼</button>
-    <button class="btn left"  id="btnLeft"  aria-label="Pause (Left)">◀</button>
-    <button class="btn right" id="btnRight" aria-label="Lightning (Right)">▶</button>
+  <!-- Dual on-screen D-pads -->
+  <div class="dpad left"  id="dpadLeft"  aria-label="Mobile controls (left)">
+    <button class="btn up"    id="L_up"    aria-label="Jump (Up)">▲</button>
+    <button class="btn down"  id="L_down"  aria-label="Duck (Down)">▼</button>
+    <button class="btn left"  id="L_left"  aria-label="Pause (Left)">◀</button>
+    <button class="btn right" id="L_right" aria-label="Lightning (Right)">▶</button>
+    <div class="lbl">Thumb controls</div>
+  </div>
+  <div class="dpad right" id="dpadRight" aria-label="Mobile controls (right)">
+    <button class="btn up"    id="R_up"    aria-label="Jump (Up)">▲</button>
+    <button class="btn down"  id="R_down"  aria-label="Duck (Down)">▼</button>
+    <button class="btn left"  id="R_left"  aria-label="Pause (Left)">◀</button>
+    <button class="btn right" id="R_right" aria-label="Lightning (Right)">▶</button>
     <div class="lbl">Thumb controls</div>
   </div>
 
   <script>
-  // ===== Bean Run — Mobile D‑pad build with High‑Contrast BLUE Lightning =====
-
-  // Touch detection to hide D‑pad on desktops
+  // Touch detection to hide pads on desktops
   if (!(('ontouchstart' in window) || (navigator.maxTouchPoints > 0))) {
     document.documentElement.classList.add('no-touch');
   }
@@ -111,12 +148,6 @@
   const centerEl = document.getElementById('center');
   const boltIcon = document.getElementById('boltIcon');
   const fmt = n => n.toString().padStart(5,'0');
-
-  // D‑pad elements
-  const btnUp   = document.getElementById('btnUp');
-  const btnDown = document.getElementById('btnDown');
-  const btnLeft = document.getElementById('btnLeft');
-  const btnRight= document.getElementById('btnRight');
 
   // State
   const STATE = {
@@ -266,19 +297,22 @@
   });
   window.addEventListener('keyup', (e)=>{ if (e.code==='ArrowDown') setDuck(false); });
 
-  // D‑pad interactions
-  const press = (el, onDown, onUp=null)=>{
-    const dn = (e)=>{ e.preventDefault(); el.setPointerCapture?.(e.pointerId); onDown?.(e); };
+  // D-pad interactions (support multi-touch via Pointer Events)
+  function press(el, onDown, onUp=null){
+    const dn = (e)=>{ e.preventDefault(); try{ el.setPointerCapture(e.pointerId); }catch{} onDown?.(e); };
     const up = (e)=>{ e.preventDefault(); onUp?.(e); };
     el.addEventListener('pointerdown', dn, {passive:false});
     el.addEventListener('pointerup', up, {passive:false});
     el.addEventListener('pointercancel', up, {passive:false});
     el.addEventListener('pointerleave', up, {passive:false});
+  }
+  const bindPad = (prefix)=>{
+    press(document.getElementById(prefix+'_up'),   ()=>{ startIfReady(); jump(); });
+    press(document.getElementById(prefix+'_down'), ()=> setDuck(true), ()=> setDuck(false));
+    press(document.getElementById(prefix+'_right'),()=> fireLightning());
+    press(document.getElementById(prefix+'_left'), ()=> togglePause());
   };
-  press(btnUp,   ()=>{ startIfReady(); jump(); });
-  press(btnDown, ()=> setDuck(true), ()=> setDuck(false));
-  press(btnRight,()=> fireLightning());
-  press(btnLeft, ()=> togglePause());
+  bindPad('L'); bindPad('R');
 
   document.addEventListener('DOMContentLoaded', ()=>{ try{ canvas.focus(); }catch{} });
 
@@ -555,7 +589,6 @@
         ctx.save();
         ctx.translate(this.x + this.w/2, this.y + this.h/2);
         ctx.rotate(((performance.now()/180)%360) * Math.PI/180);
-        // blue glow bolt icon
         ctx.shadowColor = '#8fd3ff'; ctx.shadowBlur = 12;
         ctx.fillStyle = '#8fd3ff'; ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 2;
         ctx.beginPath();
@@ -627,7 +660,7 @@
     // obstacles
     for (const o of obstacles) o.draw();
 
-    // projectiles (blue bolt trail with THICK black outline + sparks)
+    // projectiles (blue bolt trail with thick black outline + sparks)
     for (const b of projectiles){
       ctx.save();
       const trail = b.history;
@@ -741,8 +774,39 @@
   }
   function rand(min,max){ return Math.random()*(max-min)+min; }
 
-  // Navbar inject (if present)
-  fetch('navbar.html').then(r=>r.text()).then(html=>{ const nav=document.createElement('div'); nav.innerHTML=html; document.body.insertBefore(nav, document.body.firstChild); }).catch(()=>{});
+  // Inject navbar + compact behavior
+  (function(){
+    const mount = document.createElement('div'); mount.id = 'navMount';
+    document.body.insertBefore(mount, document.body.firstChild);
+    fetch('navbar.html').then(r=>r.text()).then(html=>{
+      mount.innerHTML = html;
+      // Toggle button
+      const btn = document.createElement('button');
+      btn.id = 'navToggle'; btn.className = 'nav-toggle'; btn.textContent = '☰ Menu';
+      btn.setAttribute('aria-expanded', 'false');
+      document.body.appendChild(btn);
+      const setOpen = (open)=>{
+        document.body.classList.toggle('nav-open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        // Recompute nav height variable for spacing
+        requestAnimationFrame(()=>{
+          const header = mount.querySelector('header') || mount.firstElementChild;
+          const h = header ? Math.min(header.getBoundingClientRect().height, window.innerHeight*0.7) : 56;
+          document.documentElement.style.setProperty('--navH', (open ? h : Math.min(56, h)) + 'px');
+        });
+      };
+      setOpen(false);
+      btn.addEventListener('click', ()=> setOpen(!document.body.classList.contains('nav-open')));
+      // Close menu when clicking a link inside nav
+      mount.addEventListener('click', (e)=>{
+        if (e.target.closest('a')) setOpen(false);
+      });
+      window.addEventListener('resize', ()=> setOpen(false));
+    }).catch(()=>{
+      // No navbar available; keep default spacing small
+      document.documentElement.style.setProperty('--navH', '8px');
+    });
+  })();
   </script>
 </body>
 </html>
