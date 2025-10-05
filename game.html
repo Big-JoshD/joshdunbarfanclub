@@ -166,37 +166,121 @@
   const BG = makeForestBackground(W, H, GROUND_Y);
 
   function makeForestBackground(W, H, groundY){
-    const layers = [
-      makeLayer(W, H, groundY, {speedMul:0.26, hue:'#50915a', trunk:'#37623c', baseH:44, scale:0.95, jitterY:6,  step:26}),
-      makeLayer(W, H, groundY, {speedMul:0.48, hue:'#3e864f', trunk:'#2f613b', baseH:56, scale:1.18, jitterY:8,  step:24}),
-      makeLayer(W, H, groundY, {speedMul:0.80, hue:'#2f7a45', trunk:'#255d36', baseH:66, scale:1.38, jitterY:10, step:22}),
-    ];
-    let skyGrad;
-    return {
-      update(dts, worldSpeed){
-        for(const L of layers){
-          L.offset -= worldSpeed * L.speedMul * dts;
-          if (L.offset <= -L.canvas.width) L.offset += L.canvas.width;
-        }
-      },
-      draw(ctx){
-        if (!skyGrad){
-          skyGrad = ctx.createLinearGradient(0,0,0,H);
-          skyGrad.addColorStop(0.00, '#cfe8ff');
-          skyGrad.addColorStop(0.55, '#b8dcff');
-          skyGrad.addColorStop(1.00, '#a2d0ff');
-        }
-        ctx.fillStyle = skyGrad; ctx.fillRect(0,0,W,H);
-        ctx.imageSmoothingEnabled = false;
-        for(const L of layers){
-          const x1 = Math.floor(L.offset);
-          const x2 = x1 + L.canvas.width;
-          ctx.drawImage(L.canvas, x1, 0);
-          ctx.drawImage(L.canvas, x2, 0);
-        }
-        ctx.fillStyle = '#20331f'; ctx.fillRect(0, groundY, W, H - groundY);
+  // layer configs (you can tweak colors/heights later)
+  const cfgs = [
+    { speedMul:0.10, hue:'#50915a', trunk:'#37623c', baseH:44, scale:0.95, jitterY:6,  step:26 }, // far
+    { speedMul:0.20, hue:'#3e864f', trunk:'#2f613b', baseH:56, scale:1.10, jitterY:8,  step:24 }, // mid
+    { speedMul:0.32, hue:'#2f7a45', trunk:'#255d36', baseH:66, scale:1.25, jitterY:10, step:22 }, // near
+  ];
+
+  const layers = cfgs.map(c => makeLayer(W, H, groundY, c));
+  let skyGrad;
+
+  return {
+    update(dts, worldSpeed){
+      for (const L of layers){
+        // snap offset to integer px to avoid subpixel resampling flicker
+        L.offset -= worldSpeed * L.speedMul * dts;
+        // wrap and quantize
+        if (L.offset <= -L.canvas.width) L.offset += L.canvas.width;
+        L.offset = Math.round(L.offset); // <-- pixel snapping
       }
-    };
+    },
+    draw(ctx){
+      if (!skyGrad){
+        skyGrad = ctx.createLinearGradient(0,0,0,H);
+        skyGrad.addColorStop(0.00, '#cfe8ff');
+        skyGrad.addColorStop(0.55, '#b8dcff');
+        skyGrad.addColorStop(1.00, '#a2d0ff');
+      }
+      ctx.fillStyle = skyGrad; ctx.fillRect(0,0,W,H);
+
+      // draw each layer twice to cover wrap; image smoothing off for crisp pixels
+      ctx.imageSmoothingEnabled = false;
+      for (const L of layers){
+        const x1 = L.offset|0;
+        const x2 = x1 + L.canvas.width;
+        ctx.drawImage(L.canvas, x1, 0);
+        ctx.drawImage(L.canvas, x2, 0);
+      }
+
+      // ground
+      ctx.fillStyle = '#20331f';
+      ctx.fillRect(0, groundY, W, H - groundY);
+    }
+  };
+
+  function makeLayer(W, H, groundY, opts){
+    const c = document.createElement('canvas');
+    const g = c.getContext('2d');
+    // oversize so wrapping never shows seams
+    c.width  = Math.max(W, 640) + 64;
+    c.height = H;
+    g.imageSmoothingEnabled = false;
+
+    const base = groundY, step = opts.step || 24;
+    for (let x = -20; x < c.width + 40; x += step){
+      const s = opts.scale * (0.92 + Math.random()*0.28);
+      const y = base + Math.round((Math.random()*opts.jitterY) - opts.jitterY*0.5);
+      const cluster = 2 + (Math.random() < 0.6 ? 1 : 0);
+      for (let i=0;i<cluster;i++){
+        drawPine(
+          g,
+          Math.round(x + (i-0.5)*10),
+          y,
+          Math.round((opts.baseH||48)*s*(1 + i*0.05)),
+          opts.hue,
+          opts.trunk
+        );
+      }
+    }
+    return { canvas: c, offset: 0, speedMul: opts.speedMul };
+  }
+
+  // Draw a pine with 1px black outlines on leaves and trunk
+  function drawPine(g, x, baseY, h, leafColor, trunkColor){
+    const w       = Math.max(12, Math.round(h*0.42));
+    const trunkW  = Math.max(3,  Math.round(w*0.18));
+    const trunkH  = Math.max(5,  Math.round(h*0.22));
+    const topY    = baseY - h;
+    const tiers   = 3;
+
+    // leaf tiers (filled + 1px black stroke)
+    for (let t=0; t<tiers; t++){
+      const ty = Math.round(topY + (t/tiers)*h*0.78);
+      const tw = Math.round(w - t*(w*0.22));
+      const th = Math.round(h*0.34);
+
+      g.beginPath();
+      g.moveTo(x|0, ty|0);
+      g.lineTo((x - (tw>>1))|0, (ty + th)|0);
+      g.lineTo((x + (tw>>1))|0, (ty + th)|0);
+      g.closePath();
+
+      // fill first
+      g.fillStyle = leafColor;
+      g.fill();
+
+      // crisp 1px outline (no dashes)
+      g.lineJoin = 'miter';
+      g.lineCap  = 'butt';
+      g.strokeStyle = '#000';
+      g.lineWidth   = 1;
+      g.stroke();
+    }
+
+    // trunk (fill + 1px stroke)
+    const tx = Math.round(x - trunkW/2);
+    const ty = Math.round(baseY - trunkH);
+    g.fillStyle = trunkColor;
+    g.fillRect(tx, ty, trunkW, trunkH);
+
+    // use strokeRect with integer coords for crisp 1px
+    g.strokeStyle = '#000';
+    g.lineWidth = 1;
+    g.strokeRect(tx + 0.5, ty + 0.5, trunkW - 1, trunkH - 1);
+  }
+}
     function makeLayer(W, H, groundY, opts){
       const c = document.createElement('canvas');
       const g = c.getContext('2d');
