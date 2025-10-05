@@ -525,48 +525,71 @@
     return (s - POWER.lastSpawnScore) >= POWER.spawnEveryScore;
   }
 
-  // ——— HIGH-CONTRAST PICKUP (bold black outline) ———
-  function spawnPowerup(){
-    POWER.lastSpawnScore = Math.floor(STATE.score);
-    const x = W + 20;
-    // reachable lanes
-    const lanes = [GROUND_Y - 80, GROUND_Y - 110];
-    const y = lanes[Math.floor(Math.random()*lanes.length)];
-    powerups.push({
-      x, y, w: 28, h: 28,
-      box(){ return {x:this.x+4, y:this.y+4, w:this.w-8, h:this.h-8}; },
-      draw(){
-        const t = (performance.now()/180)%360;
-        const cx = this.x + this.w/2, cy = this.y + this.h/2;
+  // ——— HIGH-CONTRAST PICKUP (2px black border + black-outlined pulsing sparks) ———
+function spawnPowerup(){
+  POWER.lastSpawnScore = Math.floor(STATE.score);
+  const x = W + 20;
+  // reachable lanes
+  const lanes = [GROUND_Y - 80, GROUND_Y - 110];
+  const y = lanes[Math.floor(Math.random()*lanes.length)];
+  powerups.push({
+    x, y, w: 28, h: 28,
+    box(){ return {x:this.x+4, y:this.y+4, w:this.w-8, h:this.h-8}; },
+    draw(){
+      const t = performance.now();
+      const cx = this.x + this.w/2, cy = this.y + this.h/2;
+      const rot = ((t/180)%360) * Math.PI/180;
+      const pulse = 0.9 + Math.sin(t*0.006)*0.1; // subtle pulse
 
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+
+      // Bolt path (no background circle)
+      const bolt = new Path2D();
+      bolt.moveTo(-6,-10); bolt.lineTo(2,-2); bolt.lineTo(-2,0);
+      bolt.lineTo(6,12);   bolt.lineTo(0,4);  bolt.lineTo(4,2); bolt.closePath();
+
+      // 2px BLACK border
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.stroke(bolt);
+
+      // Fill + mild outer glow (no black backer ring)
+      ctx.shadowColor = 'rgba(143,211,255,0.8)';
+      ctx.shadowBlur = 10 * pulse;
+      ctx.fillStyle = '#a9e2ff'; ctx.fill(bolt);
+
+      // Pulsing sparks around the bolt (black outline + bright core)
+      const sparks = 8;
+      for (let i=0;i<sparks;i++){
+        const ang = (i / sparks) * Math.PI*2 + Math.sin(t*0.004 + i)*0.15;
+        const r   = 14 + 3*Math.sin(t*0.008 + i); // slight radial pulse
+        const sx = Math.cos(ang) * r;
+        const sy = Math.sin(ang) * r;
+        const ex = Math.cos(ang) * (r + 6 + 2*Math.sin(t*0.01 + i));
+        const ey = Math.sin(ang) * (r + 6 + 2*Math.sin(t*0.01 + i));
+
+        // Black outline (tiny)
         ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(t * Math.PI/180);
-
-        // Dark backer ring for visibility on any background
         ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = 'rgba(0,0,0,0.85)';
-        ctx.beginPath(); ctx.arc(0,0,14,0,Math.PI*2); ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#000';
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.restore();
 
-        // Bolt path
-        const path = new Path2D();
-        path.moveTo(-6,-10); path.lineTo(2,-2); path.lineTo(-2,0); path.lineTo(6,12); path.lineTo(0,4); path.lineTo(4,2); path.closePath();
-
-        // Heavy BLACK outline (this is the part that was hard to see before)
-        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-        ctx.lineWidth = 5; ctx.strokeStyle = '#000'; ctx.stroke(path);
-
-        // Inner colored outline for crisp edge
-        ctx.lineWidth = 2.5; ctx.strokeStyle = '#4fc3f7'; ctx.stroke(path);
-
-        // Fill + glow
-        ctx.shadowColor = '#8fd3ff'; ctx.shadowBlur = 14;
-        ctx.fillStyle = '#a9e2ff'; ctx.fill(path);
-
+        // Bright core + glow
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(200,240,255,0.95)';
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
         ctx.restore();
       }
-    });
-  }
+
+      ctx.restore();
+    }
+  });
+}
 
   function nearestTargetAhead(preferFlying = true){
     let best = null, bestScore = Infinity;
