@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bean Run</title>
+  <title>Bean Run — Lightning (Blue)</title>
   <link rel="stylesheet" href="style.css" />
   <style>
     /* Page-scoped styles only */
-    body.game-page { overflow: hidden; }
-    .game-section { max-width: 980px; margin: 2rem auto 3rem; padding: 0 1rem; }
+    body.game-page { overflow-x: hidden; }
+    .game-section { max-width: 980px; margin: 2rem auto 1rem; padding: 0 1rem; }
     .game-wrap { position: relative; width: 100%; max-width: 960px; aspect-ratio: 3 / 1; margin: 1rem auto; border-radius: 10px; overflow: hidden; box-shadow: 0 12px 28px rgba(0,0,0,.35); background:#111; }
     canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
     .hud { position:absolute; inset:0; pointer-events:none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee; }
     .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
     .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; }
     .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-    .card { background:rgba(0,0,0,.35); backdrop-filter: blur(2px); color:#eee; border:1px solid #ffffff1a; border-radius:10px; padding:14px 18px; text-align:center; }
-    .card h2{ margin:.2rem 0 .25rem; letter-spacing:.02em; }
-    .sub { font-size:.92rem; opacity:.9; }
+    .card { background:rgba(0,0,0,.35); backdrop-filter: blur(2px); color:#eee; border:1px solid #ffffff1a; border-radius:10px; padding:10px 14px; text-align:center; }
+    .card h2{ margin:.1rem 0 .1rem; letter-spacing:.02em; font-size:1.1rem; }
+    .sub { font-size:.9rem; opacity:.9; }
     .blink { animation: blink 1.6s infinite; }
     @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:.95} }
 
@@ -28,6 +28,20 @@
       background:linear-gradient(#80d8ff,#40c4ff); color:#00324d;
       box-shadow:0 6px 18px rgba(0,0,0,0.4);
     }
+
+    /* Controls box under game */
+    .controls {
+      max-width: 960px; margin: 0.5rem auto 2.5rem; padding: 0 1rem;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .controls .box{
+      background: #0b1220; color:#dbe7ff; border:1px solid #1c2742; border-radius: 10px;
+      padding: 12px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+    }
+    .controls h3{ margin:.2rem 0 .6rem; font-size:1rem; letter-spacing:.02em; color:#c8dcff; }
+    .controls ul{ margin:0; padding-left: 1.1rem; }
+    .controls li{ margin:.2rem 0; }
+    code.k { background:#111a2a; border:1px solid #20304d; padding:.05rem .35rem; border-radius:6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   </style>
 </head>
 <body class="game-page">
@@ -44,10 +58,6 @@
         <div class="center" id="center">
           <div class="card start">
             <h2>Bean Run</h2>
-            <p class="sub" style="margin:.1rem 0 .5rem">
-              Bean is escaping the evil squirrels. Jump and duck to survive.<br>
-              Collect ⚡ and press it (or Z) to zap the nearest squirrel ahead.
-            </p>
             <div class="sub blink">Click / Tap / Space to Start</div>
           </div>
         </div>
@@ -55,21 +65,30 @@
     </div>
   </main>
 
+  <!-- Controls under the game -->
+  <section class="controls">
+    <div class="box">
+      <h3>Controls</h3>
+      <ul>
+        <li><code class="k">Space</code> / tap canvas — Start &amp; Jump</li>
+        <li><code class="k">Down Arrow</code> — Duck</li>
+        <li><code class="k">Right Arrow</code> / tap <strong>⚡</strong> — Fire Lightning (when charged)</li>
+        <li><code class="k">P</code> or <code class="k">Esc</code> — Pause</li>
+      </ul>
+    </div>
+  </section>
+
   <!-- Lightning fire button (shows only when you have power) -->
   <button id="lightningBtn" aria-label="Fire Lightning">⚡</button>
 
   <script>
   // ===== Bean Run — Forest Parallax + Predictive Attract Mode + BLUE Lightning =====
-  // Bean:   img/bean_run.png (single frame) for run & jump
-  // Duck:   img/bean_duck.png (single frame)
-  // Enemy:  img/squirrel.png (flying)
-  // Ground: img/swordsquirrel.png (ground)
 
   // Canvas
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const FRAME_MS = 1000/60; // for prediction steps
+  const FRAME_MS = 1000/60;
 
   // HUD
   const scoreEl = document.getElementById('score');
@@ -223,7 +242,7 @@
   window.addEventListener('keydown', (e)=>{
     if (e.code==='Space' || e.code==='ArrowUp'){ e.preventDefault(); if (!STATE.started || STATE.over) startGame(); else jump(); }
     if (e.code==='ArrowDown') setDuck(true);
-    if (e.code==='KeyZ') fireLightning(); // lightning hotkey
+    if (e.code==='ArrowRight') fireLightning(); // RIGHT ARROW to fire
     if (e.code==='KeyP' || e.code==='Escape') togglePause();
   });
   window.addEventListener('keyup', (e)=>{ if (e.code==='ArrowDown') setDuck(false); });
@@ -249,7 +268,6 @@
 
   // Update: Play
   function updatePlay(dts, dt){
-    // Speed ramp
     if (STATE.score < 300) STATE.speed += 0.0005 * dts;
     else if (STATE.score < 800) STATE.speed += 0.0008 * dts;
     else STATE.speed += 0.0011 * dts;
@@ -296,7 +314,7 @@
     for (let i=projectiles.length-1;i>=0;i--){
       const b = projectiles[i];
       if (!b.target || !obstacles.includes(b.target)){
-        b.target = nearestTargetAhead();           // <— works for both types
+        b.target = nearestTargetAhead();
         if (!b.target){ projectiles.splice(i,1); continue; }
       }
       const tc = obstacleCenter(b.target);
@@ -334,7 +352,7 @@
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
-  // Update: Attract (preview) with predictive jumps (unchanged)
+  // Update: Attract (preview)
   function updateAttract(dts, dt){
     STATE.speed += (DEMO.speedTarget - STATE.speed) * 0.08 * dts;
     BG.update(dts, STATE.speed);
@@ -375,7 +393,7 @@
     hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
-  // Predictive helpers for attract mode
+  // Predictive helpers (unchanged)
   function predictCollisionForObstacle(o, jumpNow){
     let px = PLAYER.x, pw = PLAYER.w, ph = 40;
     let py = groundTop(ph);
@@ -434,7 +452,7 @@
 
   // Obstacles
   function spawnObstacle(){
-    let type = 0; // ground by default
+    let type = 0;
     if (STATE.score > 180){
       const flyerChance = STATE.score > 500 ? 0.45 : 0.25;
       type = Math.random() < flyerChance ? 1 : 0;
@@ -499,7 +517,8 @@
   function spawnPowerup(){
     POWER.lastSpawnScore = Math.floor(STATE.score);
     const x = W + 20;
-    const lanes = [GROUND_Y - 120, GROUND_Y - 160];
+    // LOWER lanes so Bean can reach consistently
+    const lanes = [GROUND_Y - 80, GROUND_Y - 110];
     const y = lanes[Math.floor(Math.random()*lanes.length)];
     powerups.push({
       x, y, w: 28, h: 28,
@@ -524,8 +543,8 @@
     const px = PLAYER.x + PLAYER.w;
     for (const o of obstacles){
       const dx = o.x - px;
-      if (dx <= 0) continue; // only targets in front
-      const priority = (preferFlying && o.type === 'squirrel') ? -60 : 0; // small flyer bias
+      if (dx <= 0) continue;
+      const priority = (preferFlying && o.type === 'squirrel') ? -60 : 0;
       const score = dx + priority;
       if (score < bestScore){ best = o; bestScore = score; }
     }
@@ -534,12 +553,12 @@
 
   function fireLightning(){
     if (!STATE.started || !POWER.have) return;
-    const target = nearestTargetAhead();   // works for flying + ground
+    const target = nearestTargetAhead();
     if (!target) return;
     POWER.have = false; fireBtn.style.display = 'none';
     const start = { x: PLAYER.x + PLAYER.w/2 + 6, y: PLAYER.y + PLAYER.h*0.35 };
     projectiles.push({ x:start.x, y:start.y, target, speed:18, history:[] });
-    explodeAt(start.x, start.y, 10, 160, true); // small emitter flash (blue)
+    explodeAt(start.x, start.y, 10, 160, true);
   }
 
   function obstacleCenter(o){
@@ -580,7 +599,7 @@
     // obstacles
     for (const o of obstacles) o.draw();
 
-    // projectiles (BLUE bolt trail)
+    // projectiles (blue bolt trail)
     for (const b of projectiles){
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -603,7 +622,7 @@
       ctx.restore();
     }
 
-    // particles (blue hues)
+    // particles
     for (const p of particles){
       if (p.ring){
         const k = 1 - (p.life/140);
