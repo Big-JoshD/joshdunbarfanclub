@@ -8,9 +8,9 @@
   <style>
     :root { --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); }
     html, body { margin:0; height:100%; background:#0b1a22; overflow:hidden; }
-    /* Canvas fills screen via CSS; internal buffer uses fixed logical size */
     #wrap { position:fixed; inset:0; padding-top:var(--safe-top); padding-bottom:var(--safe-bottom); }
     canvas { width:100%; height:100%; display:block; image-rendering:pixelated; }
+
     .hud {
       position:fixed; inset:0; pointer-events:none;
       font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee;
@@ -26,6 +26,22 @@
     }
     .blink { animation:blink 1.6s infinite; }
     @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:1} }
+
+    /* Rotate prompt — shows only in portrait */
+    #rotate {
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background:rgba(0,0,0,.85); color:#fff; z-index: 9999; text-align:center; padding: 24px;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    #rotate .box {
+      border:1px solid #ffffff22; border-radius:14px; padding:18px 20px; max-width: 520px;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      box-shadow: 0 12px 28px rgba(0,0,0,.55);
+    }
+    #rotate h2 { margin:0 0 .35rem; font-size:1.25rem }
+    #rotate p { margin:.25rem 0 0; opacity:.85 }
+    @media (orientation: portrait) { #rotate { display:flex; } }
+    @media (orientation: landscape) { #rotate { display:none; } }
   </style>
 </head>
 <body>
@@ -37,9 +53,18 @@
     <div class="center" id="center">
       <div class="card">
         <h2 style="margin:.25rem 0">Bean Run — Mobile</h2>
-        <div>Tap anywhere to jump<br>Hold bottom to duck</div>
-        <div class="blink" style="margin-top:.5rem">Tap to Start</div>
+        <div>Tap anywhere to jump • Hold bottom edge to duck</div>
+        <div style="margin-top:.35rem; opacity:.8">For best experience, rotate to landscape.</div>
+        <div class="blink" style="margin-top:.65rem">Tap to Start</div>
       </div>
+    </div>
+  </div>
+
+  <!-- Rotate overlay (portrait only) -->
+  <div id="rotate">
+    <div class="box">
+      <h2>Turn your phone sideways</h2>
+      <p>Bean runs best in <strong>landscape</strong>. Rotate to play comfortably.</p>
     </div>
   </div>
 
@@ -48,13 +73,13 @@
   const LOGICAL_W = 960, LOGICAL_H = 540;
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: true });
+
   function resize() {
-    // Internal buffer stays fixed; CSS stretches it. Super reliable on iOS.
-    const dpr = Math.min(2, window.devicePixelRatio || 1); // cap DPR to keep perf
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     canvas.width  = Math.floor(LOGICAL_W * dpr);
     canvas.height = Math.floor(LOGICAL_H * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0); // scale drawing to logical space
-    rebuildForest(); // ensure treeline aligns to ground on any change
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    rebuildForest();
   }
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', () => setTimeout(resize, 250));
@@ -64,18 +89,25 @@
   let GROUND_Y = H - 56, GROUND_H = 22;
   const BEAN_FOOT_SINK = 4, groundTop = h => GROUND_Y - h + BEAN_FOOT_SINK;
 
-  const STATE = { started:false, over:false, last:0, speed:5, gravity:1.05, score:0, hi:Number(sessionStorage.getItem('bean_hi')||0) };
+  const STATE = {
+    started:false, over:false, running:false, paused:false,
+    last:0, speed:5.5, gravity:1.05,
+    score:0, hi:Number(sessionStorage.getItem('bean_hi')||0)
+  };
   const fmt = n => n.toString().padStart(5,'0');
   const scoreEl = document.getElementById('score'), hiEl = document.getElementById('hi'), centerEl = document.getElementById('center');
 
   const PLAYER = { x: Math.floor(W*0.18), y: groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
 
+  // Obstacles
+  const obstacles = [];
+  let spawnCooldown = 900; // ms until next obstacle
+
   // ---------- Assets ----------
-  const IMG = { beanRun:new Image(), beanDuck:new Image(), squirrel:new Image(), swordSquirrel:new Image() };
+  const IMG = { beanRun:new Image(), beanDuck:new Image(), squirrel:new Image() };
   IMG.beanRun.src='img/bean_run.png';
   IMG.beanDuck.src='img/bean_duck.png';
   IMG.squirrel.src='img/squirrel.png';
-  IMG.swordSquirrel.src='img/swordsquirrel.png';
 
   // ---------- Forest (rebuilt on resize) ----------
   let layers = null;
@@ -105,30 +137,39 @@
     g.fillStyle=trunk; g.fillRect(x-2, base, 4, Math.max(6, Math.floor(h*0.18)));
   }
   function drawForest(dts, speed){
-    // sky
     const sky = ctx.createLinearGradient(0,0,0,H);
     sky.addColorStop(0,'#d4ecff'); sky.addColorStop(1,'#b6defd');
     ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
-    // layers
     for(const L of layers){
       L.offset -= speed * L.speed * dts;
       if (L.offset <= -W) L.offset += W;
       ctx.drawImage(L.c, Math.floor(L.offset), 0);
       ctx.drawImage(L.c, Math.floor(L.offset+W), 0);
     }
-    // floor
     ctx.fillStyle='#20331f'; ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
   }
 
   // ---------- Touch controls ----------
   function startGame(){
-    STATE.started = true; STATE.over = false; STATE.score = 0; STATE.speed = 5;
-    Object.assign(PLAYER, { vy:0, onGround:true, duck:false });
+    STATE.started = true; STATE.over = false; STATE.running = true; STATE.paused = false;
+    STATE.score = 0; STATE.speed = 5.5; obstacles.length=0; spawnCooldown = 900;
+    Object.assign(PLAYER, { vy:0, onGround:true, duck:false, w:44, h:40 });
     PLAYER.y = groundTop(PLAYER.h);
     centerEl.style.display = 'none';
   }
-  function jump(){ if(PLAYER.onGround){ PLAYER.vy = -10.4; PLAYER.onGround = false; PLAYER.duck = false; } }
-  function setDuck(d){ PLAYER.duck = !!d; }
+  function gameOver(){
+    STATE.running=false; STATE.over=true;
+    const s = Math.floor(STATE.score);
+    if (s > STATE.hi){ STATE.hi = s; sessionStorage.setItem('bean_hi', String(s)); }
+    scoreEl.textContent = fmt(s); hiEl.textContent = 'HI ' + fmt(STATE.hi);
+    centerEl.style.display = 'flex';
+    centerEl.querySelector('.card').innerHTML =
+      `<h2 style="margin:.25rem 0">Game Over</h2>
+       <div>Score: ${fmt(s)}</div>
+       <div class="blink" style="margin-top:.5rem">Tap to Retry</div>`;
+  }
+  function jump(){ if(PLAYER.onGround && STATE.running && !STATE.paused && !STATE.over){ PLAYER.vy = -10.4; PLAYER.onGround = false; PLAYER.duck = false; } }
+  function setDuck(d){ if(STATE.running && !STATE.paused && !STATE.over) PLAYER.duck = !!d; }
 
   canvas.addEventListener('touchstart', e=>{
     e.preventDefault();
@@ -145,14 +186,18 @@
     const dts = dt / (1000/60);
     STATE.last = now;
 
-    update(dts);
+    update(dts, dt);
     render(dts);
     requestAnimationFrame(loop);
   }
 
-  function update(dts){
-    // gentle speed ramp
-    if (STATE.started) STATE.speed += 0.0006 * dts;
+  // ---------- Spawning + physics ----------
+  function update(dts, dt){
+    // speed & score ramp only while running
+    if (STATE.started && !STATE.over){
+      STATE.speed += 0.0007 * dts;
+      STATE.score += 0.35 * dts;
+    }
 
     // gravity
     if (!PLAYER.onGround){
@@ -166,8 +211,89 @@
     } else {
       PLAYER.h = 40; PLAYER.y = groundTop(PLAYER.h);
     }
+
+    // spawn enemies
+    if (STATE.started && !STATE.over){
+      spawnCooldown -= dt;
+      if (spawnCooldown <= 0){
+        spawnObstacle();
+        spawnCooldown = rand(currentGapMin(), currentGapMax());
+      }
+    }
+
+    // move + collide
+    for (let i = obstacles.length - 1; i >= 0; i--){
+      const o = obstacles[i];
+      o.x -= STATE.speed * dts;
+      if (o.update) o.update(dts, dt);
+      if (o.x + o.w < -10) { obstacles.splice(i,1); continue; }
+      if (hit(playerBox(), o.box())) { gameOver(); break; }
+    }
+
+    // HUD
+    scoreEl.textContent = fmt(Math.floor(STATE.score));
+    hiEl.textContent = 'HI ' + fmt(STATE.hi);
   }
 
+  // ---------- Obstacles ----------
+  function spawnObstacle(){
+    // two types: ground plate (rolling) and flying squirrel (bobbing)
+    let type = 0;
+    const s = STATE.score;
+    if (s > 160){
+      const squirrelChance = s > 500 ? 0.45 : 0.25;
+      type = Math.random() < squirrelChance ? 1 : 0;
+    }
+    obstacles.push(type === 0 ? Plate() : Squirrel());
+  }
+  function currentGapMin(){ const s=STATE.score; return s < 150 ? 900 : s < 350 ? 750 : s < 700 ? 600 : 480; }
+  function currentGapMax(){ const s=STATE.score; return s < 150 ? 1500 : s < 350 ? 1300 : s < 700 ? 1100 : 950; }
+
+  function Plate(){
+    const size = 34, y = GROUND_Y - size + 6; let spin = Math.random()*Math.PI;
+    return {
+      type:'plate', x: W+10, y, w:size, h:size,
+      box(){ const p=6; return {x:this.x+p,y:this.y+p,w:this.w-2*p,h:this.h-2*p}; },
+      update(){ spin += 0.18; },
+      draw(){
+        const cx = this.x + this.w/2, cy = this.y + this.h/2;
+        ctx.save(); ctx.translate(cx,cy); ctx.rotate(spin);
+        ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(0,0,this.w*0.5,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#3d3d3d'; ctx.beginPath(); ctx.arc(0,0,this.w*0.33,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,this.w*0.09,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    };
+  }
+
+  function Squirrel(){
+    const lanes = [GROUND_Y - 80, GROUND_Y - 120];
+    const baseY = lanes[Math.floor(Math.random()*lanes.length)];
+    const amp = 8 + Math.random()*8;
+    const period = 1000 + Math.random()*500;
+    const born = performance.now();
+    const w = 52, h = 40;
+    return {
+      type:'squirrel', x: W+10, y: baseY, w, h,
+      box(){ const p = 3; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },
+      update(){ const t = (performance.now() - born) / period; this.y = baseY + Math.sin(t * Math.PI * 2) * amp; },
+      draw(){
+        if (IMG.squirrel.complete){
+          drawImage(IMG.squirrel, this.x, this.y, this.w, this.h, 0);
+        } else {
+          // tiny fallback
+          ctx.fillStyle = '#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4);
+          ctx.fillStyle = '#111';     ctx.fillRect(this.x + 6, this.y + 8, this.w - 12, this.h - 12);
+        }
+      }
+    };
+  }
+
+  // ---------- Collision ----------
+  const playerBox = () => { const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
+  const hit = (a,b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+  // ---------- Render ----------
   function render(dts){
     ctx.clearRect(0,0,W,H);
     drawForest(dts, STATE.speed);
@@ -176,10 +302,23 @@
     ctx.fillStyle='#4a4238'; const seg=24, off=Math.floor((performance.now()/30)%seg);
     for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
     // player
-    const img = (PLAYER.duck && STATE.started) ? IMG.beanDuck : IMG.beanRun;
+    const img = (PLAYER.duck && PLAYER.onGround) ? IMG.beanDuck : IMG.beanRun;
     ctx.imageSmoothingEnabled=false;
     ctx.drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
+    // obstacles
+    for (const o of obstacles){ o.draw(); }
   }
+
+  // helpers
+  function drawImage(img, x, y, w, h, rot){
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x + w/2, y + h/2);
+    if (rot) ctx.rotate(rot);
+    ctx.drawImage(img, 0, 0, img.width, img.height, -w/2, -h/2, w, h);
+    ctx.restore();
+  }
+  const rand = (min,max)=> Math.random()*(max-min)+min;
 
   // boot
   resize();
