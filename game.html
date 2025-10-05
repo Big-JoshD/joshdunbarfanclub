@@ -525,7 +525,7 @@
     return (s - POWER.lastSpawnScore) >= POWER.spawnEveryScore;
   }
 
-  // ——— POWER-UP: vivid blue bolt + small jagged sparks ———
+  // ——— POWER-UP: vivid multi-hue bolt (no black), with colored mini-bolt sparks ———
 function spawnPowerup(){
   POWER.lastSpawnScore = Math.floor(STATE.score);
   const x = W + 20;
@@ -544,70 +544,120 @@ function spawnPowerup(){
       ctx.translate(cx, cy);
       ctx.rotate(rot);
 
-      // main bolt (cleaner blue)
+      // ---------- main bolt path (no black) ----------
       const bolt = new Path2D();
       bolt.moveTo(-6,-10);
-      bolt.lineTo(1,-2);
-      bolt.lineTo(-2,1);
-      bolt.lineTo(6,12);
-      bolt.lineTo(0,4);
-      bolt.lineTo(3,2);
+      bolt.lineTo( 1,-2);
+      bolt.lineTo(-2, 1);
+      bolt.lineTo( 6,12);
+      bolt.lineTo( 0, 4);
+      bolt.lineTo( 3, 2);
       bolt.closePath();
 
-      // subtle black outline
+      // soft purple outer aura
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      ctx.lineWidth = 1.5; ctx.strokeStyle = '#000';
+      ctx.lineWidth = 5.5;
+      ctx.strokeStyle = `rgba(150, 70, 255, ${0.45*pulse})`; // purple
       ctx.stroke(bolt);
+      ctx.restore();
 
-      // bright cyan fill + glow
+      // electric blue “edge light”
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineWidth = 3.0;
+      ctx.strokeStyle = `rgba(80, 190, 255, ${0.85})`;       // blue
+      ctx.stroke(bolt);
+      ctx.restore();
+
+      // bright cyan fill with glow
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
       ctx.shadowColor = 'rgba(120,210,255,0.8)';
       ctx.shadowBlur = 10 * pulse;
-      ctx.fillStyle = '#6fd2ff';
+      const grad = ctx.createLinearGradient(-6,-10,6,12);
+      grad.addColorStop(0.00, '#9fe4ff');  // blue
+      grad.addColorStop(0.60, '#e9fbff');  // white
+      grad.addColorStop(1.00, '#b3e8ff');  // blue
+      ctx.fillStyle = grad;
       ctx.fill(bolt);
+      ctx.restore();
 
-      // — sparklets: miniature zig-zag lightning strokes —
-      const sparks = 8;
+      // thin white-hot core stroke
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.stroke(bolt);
+      ctx.restore();
+
+      // subtle yellow specular highlight (adds warmth/pop)
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineWidth = 1.0;
+      ctx.strokeStyle = 'rgba(255,235,130,0.85)'; // yellow
+      ctx.setLineDash([3, 10]);                   // short highlight bits
+      ctx.lineDashOffset = (t * 0.02) % 13;       // drift
+      ctx.stroke(bolt);
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // ---------- colored mini-bolt sparks (no black) ----------
+      const sparks = 9;
       for (let i=0;i<sparks;i++){
         const ang = (i / sparks) * Math.PI*2 + Math.sin(t*0.004 + i)*0.15;
-        const r = 14 + 3*Math.sin(t*0.008 + i);
+        const r   = 14 + 3*Math.sin(t*0.008 + i);
         const sx = Math.cos(ang) * r;
         const sy = Math.sin(ang) * r;
 
-        // create tiny zig-zag bolt shape
-        const segs = 2 + Math.floor(Math.random()*2);
-        const boltPts = [{x:sx, y:sy}];
+        // build a tiny jagged zig-zag
+        const segs = 2 + (i % 2); // 2–3 segments
+        const pts = [{x:sx, y:sy}];
         let len = 6 + Math.random()*3;
         let dir = ang + (Math.random()-0.5)*0.6;
         for(let s=0;s<segs;s++){
-          const last = boltPts[boltPts.length-1];
+          const last = pts[pts.length-1];
           dir += (Math.random()-0.5)*0.6;
-          len *= 0.6 + Math.random()*0.5;
-          boltPts.push({
-            x: last.x + Math.cos(dir)*len,
-            y: last.y + Math.sin(dir)*len
-          });
+          len *= 0.65 + Math.random()*0.45;
+          pts.push({ x: last.x + Math.cos(dir)*len, y: last.y + Math.sin(dir)*len });
         }
 
-        // black outline
+        // purple outer glow
         ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.lineWidth = 1.6;
-        ctx.strokeStyle = '#000';
-        ctx.beginPath();
-        ctx.moveTo(boltPts[0].x, boltPts[0].y);
-        for(let p=1;p<boltPts.length;p++) ctx.lineTo(boltPts[p].x, boltPts[p].y);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = `rgba(150, 70, 255, ${0.50*(1 + 0.2*Math.sin(t*0.01+i))})`;
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let p=1;p<pts.length;p++) ctx.lineTo(pts[p].x, pts[p].y);
         ctx.stroke();
         ctx.restore();
 
-        // glowing blue core
+        // blue mid glow
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ctx.lineWidth = 1.0;
-        ctx.strokeStyle = `rgba(160,230,255,${0.8*pulse})`;
-        ctx.beginPath();
-        ctx.moveTo(boltPts[0].x, boltPts[0].y);
-        for(let p=1;p<boltPts.length;p++) ctx.lineTo(boltPts[p].x, boltPts[p].y);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(110, 210, 255, 0.85)';
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let p=1;p<pts.length;p++) ctx.lineTo(pts[p].x, pts[p].y);
         ctx.stroke();
+        ctx.restore();
+
+        // white/yellow filament core
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineWidth = 0.9;
+        // alternate white & warm tip for sparkle
+        const tip = pts[pts.length-1];
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let p=1;p<pts.length;p++) ctx.lineTo(pts[p].x, pts[p].y);
+        ctx.stroke();
+        // tiny yellow glint at the tip
+        ctx.beginPath();
+        ctx.arc(tip.x, tip.y, 1.2, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,235,130,0.9)';
+        ctx.fill();
         ctx.restore();
       }
 
@@ -615,6 +665,7 @@ function spawnPowerup(){
     }
   });
 }
+
 
   function nearestTargetAhead(preferFlying = true){
     let best = null, bestScore = Infinity;
