@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Bean Run — Mobile</title>
   <style>
     :root { --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); }
@@ -11,35 +10,18 @@
     #wrap { position:fixed; inset:0; padding-top:var(--safe-top); padding-bottom:var(--safe-bottom); }
     canvas { width:100%; height:100%; display:block; image-rendering:pixelated; }
 
-    .hud {
-      position:fixed; inset:0; pointer-events:none;
-      font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee;
-    }
+    .hud { position:fixed; inset:0; pointer-events:none; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee; }
     .hud .hi { position:absolute; top:8px; left:12px; opacity:.85; text-shadow:0 1px 0 #0008; }
     .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #0008; }
     .center { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
-    .card {
-      pointer-events:auto;
-      background:rgba(0,0,0,.35); backdrop-filter:blur(3px);
-      color:#eee; border:1px solid #ffffff1a; border-radius:12px;
-      padding:16px 20px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,.5);
-    }
-    .blink { animation:blink 1.6s infinite; }
-    @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:1} }
+    .card { pointer-events:auto; background:rgba(0,0,0,.35); backdrop-filter:blur(3px); color:#eee; border:1px solid #ffffff1a; border-radius:12px; padding:16px 20px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,.5); }
+    .blink { animation:blink 1.6s infinite; } @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:1} }
 
-    /* Rotate prompt — shows only in portrait */
-    #rotate {
-      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-      background:rgba(0,0,0,.85); color:#fff; z-index: 9999; text-align:center; padding: 24px;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    }
-    #rotate .box {
-      border:1px solid #ffffff22; border-radius:14px; padding:18px 20px; max-width: 520px;
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      box-shadow: 0 12px 28px rgba(0,0,0,.55);
-    }
-    #rotate h2 { margin:0 0 .35rem; font-size:1.25rem }
-    #rotate p { margin:.25rem 0 0; opacity:.85 }
+    /* Portrait rotate prompt */
+    #rotate { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.85); color:#fff; z-index:9999; text-align:center; padding:24px;
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"; }
+    #rotate .box { border:1px solid #ffffff22; border-radius:14px; padding:18px 20px; max-width:520px; background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03)); box-shadow:0 12px 28px rgba(0,0,0,.55); }
+    #rotate h2 { margin:0 0 .35rem; font-size:1.25rem } #rotate p { margin:.25rem 0 0; opacity:.85 }
     @media (orientation: portrait) { #rotate { display:flex; } }
     @media (orientation: landscape) { #rotate { display:none; } }
   </style>
@@ -53,63 +35,59 @@
     <div class="center" id="center">
       <div class="card">
         <h2 style="margin:.25rem 0">Bean Run — Mobile</h2>
-        <div>Tap anywhere to jump • Hold bottom edge to duck</div>
+        <div>Tap to jump • Hold bottom edge to duck</div>
         <div style="margin-top:.35rem; opacity:.8">For best experience, rotate to landscape.</div>
         <div class="blink" style="margin-top:.65rem">Tap to Start</div>
       </div>
     </div>
   </div>
 
-  <!-- Rotate overlay (portrait only) -->
+  <!-- Rotate overlay -->
   <div id="rotate">
     <div class="box">
       <h2>Turn your phone sideways</h2>
-      <p>Bean runs best in <strong>landscape</strong>. Rotate to play comfortably.</p>
+      <p>Bean runs best in <strong>landscape</strong>. Rotate to play.</p>
     </div>
   </div>
 
   <script>
-  // ---------- Fixed logical canvas (960x540), CSS scales to screen ----------
+  // ---------- Fixed logical canvas ----------
   const LOGICAL_W = 960, LOGICAL_H = 540;
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  function resize() {
+  function resize(){
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     canvas.width  = Math.floor(LOGICAL_W * dpr);
     canvas.height = Math.floor(LOGICAL_H * dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
     rebuildForest();
   }
-  window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+  addEventListener('resize', resize);
+  addEventListener('orientationchange', () => setTimeout(resize, 250));
 
-  // ---------- Game state ----------
-  const W = LOGICAL_W, H = LOGICAL_H;
-  let GROUND_Y = H - 56, GROUND_H = 22;
+  // ---------- World ----------
+  const W=LOGICAL_W, H=LOGICAL_H;
+  let GROUND_Y = H-56, GROUND_H=22;
   const BEAN_FOOT_SINK = 4, groundTop = h => GROUND_Y - h + BEAN_FOOT_SINK;
 
-  const STATE = {
-    started:false, over:false, running:false, paused:false,
-    last:0, speed:5.5, gravity:1.05,
-    score:0, hi:Number(sessionStorage.getItem('bean_hi')||0)
-  };
-  const fmt = n => n.toString().padStart(5,'0');
+  const STATE = { started:false, over:false, last:0, speed:5.5, gravity:1.05, score:0, hi:Number(sessionStorage.getItem('bean_hi')||0) };
   const scoreEl = document.getElementById('score'), hiEl = document.getElementById('hi'), centerEl = document.getElementById('center');
+  const fmt = n => n.toString().padStart(5,'0');
 
-  const PLAYER = { x: Math.floor(W*0.18), y: groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
+  const PLAYER = { x:Math.floor(W*0.18), y:groundTop(40), w:44, h:40, vy:0, duck:false, onGround:true };
 
-  // Obstacles
+  // Obstacles (uses same sword squirrel art as desktop)
   const obstacles = [];
-  let spawnCooldown = 900; // ms until next obstacle
+  let spawnMs = 900;
 
   // ---------- Assets ----------
-  const IMG = { beanRun:new Image(), beanDuck:new Image(), squirrel:new Image() };
+  const IMG = { beanRun:new Image(), beanDuck:new Image(), swordSquirrel:new Image() };
   IMG.beanRun.src='img/bean_run.png';
   IMG.beanDuck.src='img/bean_duck.png';
-  IMG.squirrel.src='img/squirrel.png';
+  IMG.swordSquirrel.src='img/swordsquirrel.png'; // same enemy sprite as main game
 
-  // ---------- Forest (rebuilt on resize) ----------
+  // ---------- Background ----------
   let layers = null;
   function rebuildForest(){
     layers = [
@@ -118,23 +96,19 @@
       makeLayer({speed:0.70, hue:'#2f7a45', trunk:'#255d36', scale:1.38, step:22}),
     ];
   }
-  function makeLayer(opts){
-    const c = document.createElement('canvas'), g = c.getContext('2d');
-    c.width = W; c.height = H;
-    const base = GROUND_Y;
-    for (let x=-20; x<c.width+40; x += opts.step){
-      const s = opts.scale*(0.9+Math.random()*0.35);
-      drawTree(g, x, base, Math.floor(48*s), opts.hue, opts.trunk);
+  function makeLayer(o){
+    const c=document.createElement('canvas'), g=c.getContext('2d'); c.width=W; c.height=H;
+    const base=GROUND_Y;
+    for(let x=-20;x<c.width+40;x+=o.step){
+      const s=o.scale*(0.9+Math.random()*0.35);
+      drawTree(g,x,base,Math.floor(48*s),o.hue,o.trunk);
     }
-    return { c, offset:0, speed:opts.speed };
+    return {c,offset:0,speed:o.speed};
   }
-  function drawTree(g, x, base, h, leaf, trunk){
-    const w=Math.max(12, Math.floor(h*0.42));
-    // canopy
-    g.fillStyle=leaf;
-    g.beginPath(); g.moveTo(x, base - h); g.lineTo(x - w/2, base); g.lineTo(x + w/2, base); g.closePath(); g.fill();
-    // trunk
-    g.fillStyle=trunk; g.fillRect(x-2, base, 4, Math.max(6, Math.floor(h*0.18)));
+  function drawTree(g,x,base,h,leaf,trunk){
+    const w=Math.max(12,Math.floor(h*0.42));
+    g.fillStyle=leaf; g.beginPath(); g.moveTo(x,base-h); g.lineTo(x-w/2,base); g.lineTo(x+w/2,base); g.closePath(); g.fill();
+    g.fillStyle=trunk; g.fillRect(x-2,base,4,Math.max(6,Math.floor(h*0.18)));
   }
   function drawForest(dts, speed){
     const sky = ctx.createLinearGradient(0,0,0,H);
@@ -149,151 +123,127 @@
     ctx.fillStyle='#20331f'; ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
   }
 
-  // ---------- Touch controls ----------
+  // ---------- Controls ----------
   function startGame(){
-    STATE.started = true; STATE.over = false; STATE.running = true; STATE.paused = false;
-    STATE.score = 0; STATE.speed = 5.5; obstacles.length=0; spawnCooldown = 900;
-    Object.assign(PLAYER, { vy:0, onGround:true, duck:false, w:44, h:40 });
+    STATE.started=true; STATE.over=false; STATE.score=0; STATE.speed=5.5;
+    obstacles.length=0; spawnMs=900;
+    Object.assign(PLAYER,{vy:0,onGround:true,duck:false,w:44,h:40});
     PLAYER.y = groundTop(PLAYER.h);
-    centerEl.style.display = 'none';
+    centerEl.style.display='none';
   }
   function gameOver(){
-    STATE.running=false; STATE.over=true;
-    const s = Math.floor(STATE.score);
-    if (s > STATE.hi){ STATE.hi = s; sessionStorage.setItem('bean_hi', String(s)); }
-    scoreEl.textContent = fmt(s); hiEl.textContent = 'HI ' + fmt(STATE.hi);
-    centerEl.style.display = 'flex';
+    STATE.over=true;
+    const s=Math.floor(STATE.score);
+    if(s>STATE.hi){ STATE.hi=s; sessionStorage.setItem('bean_hi', String(s)); }
+    scoreEl.textContent=fmt(s); hiEl.textContent='HI '+fmt(STATE.hi);
+    centerEl.style.display='flex';
     centerEl.querySelector('.card').innerHTML =
       `<h2 style="margin:.25rem 0">Game Over</h2>
        <div>Score: ${fmt(s)}</div>
        <div class="blink" style="margin-top:.5rem">Tap to Retry</div>`;
   }
-  function jump(){ if(PLAYER.onGround && STATE.running && !STATE.paused && !STATE.over){ PLAYER.vy = -10.4; PLAYER.onGround = false; PLAYER.duck = false; } }
-  function setDuck(d){ if(STATE.running && !STATE.paused && !STATE.over) PLAYER.duck = !!d; }
+  function jump(){ if(PLAYER.onGround && STATE.started && !STATE.over){ PLAYER.vy=-10.4; PLAYER.onGround=false; PLAYER.duck=false; } }
+  function setDuck(d){ if(STATE.started && !STATE.over) PLAYER.duck=!!d; }
 
   canvas.addEventListener('touchstart', e=>{
     e.preventDefault();
-    const y = e.touches[0].clientY;
-    if (!STATE.started || STATE.over){ startGame(); jump(); return; }
-    if (y > window.innerHeight * 0.85) setDuck(true); else jump();
+    const y=e.touches[0].clientY;
+    if(!STATE.started || STATE.over){ startGame(); jump(); return; }
+    if(y > innerHeight*0.85) setDuck(true); else jump();
   }, {passive:false});
   canvas.addEventListener('touchend', ()=> setDuck(false), {passive:true});
 
   // ---------- Loop ----------
   requestAnimationFrame(loop);
   function loop(now){
-    const dt = Math.min(32, now - STATE.last);
-    const dts = dt / (1000/60);
-    STATE.last = now;
-
+    const dt=Math.min(32, now-(STATE.last||now)); STATE.last=now;
+    const dts = dt/(1000/60);
     update(dts, dt);
     render(dts);
     requestAnimationFrame(loop);
   }
 
-  // ---------- Spawning + physics ----------
   function update(dts, dt){
-    // speed & score ramp only while running
-    if (STATE.started && !STATE.over){
+    if(STATE.started && !STATE.over){
       STATE.speed += 0.0007 * dts;
       STATE.score += 0.35 * dts;
     }
 
-    // gravity
-    if (!PLAYER.onGround){
+    // bean physics
+    if(!PLAYER.onGround){
       PLAYER.vy += STATE.gravity * dts * 0.5;
       PLAYER.y  += PLAYER.vy * dts;
-      if (PLAYER.y >= groundTop(PLAYER.h)){
-        PLAYER.y = groundTop(PLAYER.h); PLAYER.vy = 0; PLAYER.onGround = true;
-      }
-    } else if (PLAYER.duck){
-      PLAYER.h = 32; PLAYER.y = groundTop(PLAYER.h);
-    } else {
-      PLAYER.h = 40; PLAYER.y = groundTop(PLAYER.h);
-    }
+      if(PLAYER.y >= groundTop(PLAYER.h)){ PLAYER.y=groundTop(PLAYER.h); PLAYER.vy=0; PLAYER.onGround=true; }
+    }else if(PLAYER.duck){ PLAYER.h=32; PLAYER.y=groundTop(PLAYER.h); }
+    else { PLAYER.h=40; PLAYER.y=groundTop(PLAYER.h); }
 
-    // spawn enemies
-    if (STATE.started && !STATE.over){
-      spawnCooldown -= dt;
-      if (spawnCooldown <= 0){
-        spawnObstacle();
-        spawnCooldown = rand(currentGapMin(), currentGapMax());
-      }
+    // spawn sword squirrels (same enemy as desktop)
+    if(STATE.started && !STATE.over){
+      spawnMs -= dt;
+      if(spawnMs<=0){ obstacles.push(SwordSquirrel()); spawnMs = rand(gapMin(), gapMax()); }
     }
 
     // move + collide
-    for (let i = obstacles.length - 1; i >= 0; i--){
-      const o = obstacles[i];
+    for(let i=obstacles.length-1;i>=0;i--){
+      const o=obstacles[i];
       o.x -= STATE.speed * dts;
-      if (o.update) o.update(dts, dt);
-      if (o.x + o.w < -10) { obstacles.splice(i,1); continue; }
+      o.update && o.update(dts, dt);
+      if(o.x + o.w < -10){ obstacles.splice(i,1); continue; }
       if (hit(playerBox(), o.box())) { gameOver(); break; }
     }
 
     // HUD
     scoreEl.textContent = fmt(Math.floor(STATE.score));
-    hiEl.textContent = 'HI ' + fmt(STATE.hi);
+    hiEl.textContent    = 'HI ' + fmt(STATE.hi);
   }
 
-  // ---------- Obstacles ----------
-  function spawnObstacle(){
-    // two types: ground plate (rolling) and flying squirrel (bobbing)
-    let type = 0;
-    const s = STATE.score;
-    if (s > 160){
-      const squirrelChance = s > 500 ? 0.45 : 0.25;
-      type = Math.random() < squirrelChance ? 1 : 0;
-    }
-    obstacles.push(type === 0 ? Plate() : Squirrel());
-  }
-  function currentGapMin(){ const s=STATE.score; return s < 150 ? 900 : s < 350 ? 750 : s < 700 ? 600 : 480; }
-  function currentGapMax(){ const s=STATE.score; return s < 150 ? 1500 : s < 350 ? 1300 : s < 700 ? 1100 : 950; }
-
-  function Plate(){
-    const size = 34, y = GROUND_Y - size + 6; let spin = Math.random()*Math.PI;
-    return {
-      type:'plate', x: W+10, y, w:size, h:size,
-      box(){ const p=6; return {x:this.x+p,y:this.y+p,w:this.w-2*p,h:this.h-2*p}; },
-      update(){ spin += 0.18; },
-      draw(){
-        const cx = this.x + this.w/2, cy = this.y + this.h/2;
-        ctx.save(); ctx.translate(cx,cy); ctx.rotate(spin);
-        ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(0,0,this.w*0.5,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#3d3d3d'; ctx.beginPath(); ctx.arc(0,0,this.w*0.33,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,this.w*0.09,0,Math.PI*2); ctx.fill();
-        ctx.restore();
-      }
-    };
-  }
-
-  function Squirrel(){
-    const lanes = [GROUND_Y - 80, GROUND_Y - 120];
-    const baseY = lanes[Math.floor(Math.random()*lanes.length)];
-    const amp = 8 + Math.random()*8;
-    const period = 1000 + Math.random()*500;
+  // Desktop-like squirrel behavior: forward glide with subtle bob + occasional dive
+  function SwordSquirrel(){
+    const baseLaneHi = GROUND_Y - 120;
+    const baseLaneLo = GROUND_Y - 80;
+    const startY = Math.random()<0.5 ? baseLaneLo : baseLaneHi;
+    const w=64, h=48;
     const born = performance.now();
-    const w = 52, h = 40;
+    // randomize movement “feel” to match desktop vibe
+    const bobAmp = 6 + Math.random()*10;
+    const bobPeriod = 900 + Math.random()*500;
+    const willDive = Math.random() < 0.25;       // sometimes force a jump
+    const diveDelay = 300 + Math.random()*500;   // ms after entering screen
+    const diveDur = 260 + Math.random()*200;     // dive window
+
     return {
-      type:'squirrel', x: W+10, y: baseY, w, h,
-      box(){ const p = 3; return { x:this.x+p, y:this.y+p, w:this.w-2*p, h:this.h-2*p }; },
-      update(){ const t = (performance.now() - born) / period; this.y = baseY + Math.sin(t * Math.PI * 2) * amp; },
+      type:'swordSquirrel', x: W+10, y:startY, w, h,
+      box(){ const p=6; return {x:this.x+p,y:this.y+p,w:this.w-2*p,h:this.h-2*p}; },
+      update(){
+        const t = performance.now() - born;
+        // sine bob
+        this.y = startY + Math.sin(t / bobPeriod * Math.PI*2) * bobAmp;
+
+        // brief dive to lower lane (or near ground) then back up
+        if (willDive && t> diveDelay && t < diveDelay + diveDur){
+          const diveTarget = GROUND_Y - 64; // skim above ground
+          this.y += (diveTarget - this.y) * 0.25;
+        }
+      },
       draw(){
-        if (IMG.squirrel.complete){
-          drawImage(IMG.squirrel, this.x, this.y, this.w, this.h, 0);
+        if (IMG.swordSquirrel.complete){
+          drawImage(IMG.swordSquirrel, this.x, this.y, this.w, this.h, 0);
         } else {
-          // tiny fallback
-          ctx.fillStyle = '#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4);
-          ctx.fillStyle = '#111';     ctx.fillRect(this.x + 6, this.y + 8, this.w - 12, this.h - 12);
+          // fallback block
+          ctx.fillStyle='#1b1b1b'; ctx.fillRect(this.x, this.y + this.h - 4, this.w, 4);
+          ctx.fillStyle='#111'; ctx.fillRect(this.x+6, this.y+8, this.w-12, this.h-12);
         }
       }
     };
   }
 
-  // ---------- Collision ----------
-  const playerBox = () => { const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
-  const hit = (a,b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  function gapMin(){ const s=STATE.score; return s<150? 900 : s<350? 750 : s<700? 600 : 480; }
+  function gapMax(){ const s=STATE.score; return s<150?1500 : s<350?1300 : s<700?1100 : 950; }
 
-  // ---------- Render ----------
+  // ---------- Collision / Render ----------
+  const playerBox = ()=>{ const p=6; return {x:PLAYER.x+p, y:PLAYER.y+p, w:PLAYER.w-2*p, h:PLAYER.h-2*p}; };
+  const hit = (a,b)=> a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+
   function render(dts){
     ctx.clearRect(0,0,W,H);
     drawForest(dts, STATE.speed);
@@ -301,24 +251,21 @@
     ctx.fillStyle='#3a3328'; ctx.fillRect(0,GROUND_Y,W,GROUND_H);
     ctx.fillStyle='#4a4238'; const seg=24, off=Math.floor((performance.now()/30)%seg);
     for(let x=-off;x<W;x+=seg){ ctx.fillRect(x,GROUND_Y+GROUND_H-6,12,3); }
+
     // player
     const img = (PLAYER.duck && PLAYER.onGround) ? IMG.beanDuck : IMG.beanRun;
     ctx.imageSmoothingEnabled=false;
     ctx.drawImage(img, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h);
-    // obstacles
-    for (const o of obstacles){ o.draw(); }
+
+    // enemies
+    for(const o of obstacles) o.draw();
   }
 
-  // helpers
-  function drawImage(img, x, y, w, h, rot){
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.translate(x + w/2, y + h/2);
-    if (rot) ctx.rotate(rot);
-    ctx.drawImage(img, 0, 0, img.width, img.height, -w/2, -h/2, w, h);
-    ctx.restore();
+  function drawImage(img,x,y,w,h,rot){
+    ctx.save(); ctx.imageSmoothingEnabled=false; ctx.translate(x+w/2,y+h/2); if(rot) ctx.rotate(rot);
+    ctx.drawImage(img, 0,0,img.width,img.height, -w/2,-h/2, w,h); ctx.restore();
   }
-  const rand = (min,max)=> Math.random()*(max-min)+min;
+  const rand=(min,max)=> Math.random()*(max-min)+min;
 
   // boot
   resize();
