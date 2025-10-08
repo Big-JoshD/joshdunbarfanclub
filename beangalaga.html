@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bean Galaga — Defender of Josh</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Page‑scoped layout only (design in style.css) */
+    body.game-page { overflow: hidden; }
+    .game-section { max-width: 980px; margin: 2rem auto 3rem; padding: 0 1rem; }
+    .game-wrap { position: relative; width: 100%; max-width: 960px; aspect-ratio: 4 / 3; margin: 1rem auto; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 28px rgba(0,0,0,.35); background:#000; }
+    canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; background:#000; }
+    .hud { position:absolute; inset:0; pointer-events:none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#eee; }
+    .hud .hi { position:absolute; top:8px; left:12px; opacity:.9; text-shadow:0 1px 0 #000a; }
+    .hud .score { position:absolute; top:8px; right:12px; font-weight:700; text-shadow:0 1px 0 #000a; }
+    .hud .lives { position:absolute; left:12px; bottom:8px; display:flex; gap:8px; }
+    .hud .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+    .hud .card { background:rgba(0,0,0,.6); color:#eee; border:1px solid #ffffff1a; border-radius:10px; padding:14px 18px; text-align:center; }
+    .hud .sub { font-size:.92rem; opacity:.9; }
+    .btn-return { display:none; position:absolute; top:10px; left:50%; transform:translateX(-50%); pointer-events:auto; background:#111; color:#fff; border:1px solid #333; padding:6px 10px; border-radius:8px; font-size:.9rem; }
+    @media (max-width: 700px){
+      header { display:none !important; }
+      .btn-return{ display:block; }
+      body.game-page { overflow-x:hidden; }
+    }
+  </style>
+</head>
+<body class="game-page">
+  <main class="game-section content-box">
+    <h1 class="section-title">BEAN GALAGA — Defender of Josh</h1>
+    <p class="reverent-text">A faithful Galaga-style homage. Defend Josh’s Gym Planet from the Squirrelon Armada.</p>
+
+    <div class="game-wrap">
+      <button class="btn-return" onclick="location.href='index.html'">Tap to return to homepage</button>
+      <canvas id="game" width="960" height="720" tabindex="0" aria-label="Bean Galaga"></canvas>
+      <div class="hud">
+        <div class="hi" id="hi">HI 00000</div>
+        <div class="score" id="score">00000</div>
+        <div class="lives" id="lives"></div>
+        <div class="center" id="center">
+          <div class="card">
+            <div style="font-weight:700; margin-bottom:.35rem;">BEAN GALAGA — DEFENDER OF JOSH</div>
+            <div style="opacity:.95; margin-bottom:.4rem;">Protect the Gym Planet from the Squirrelon Armada.</div>
+            <div class="sub">Move: ◄ ► &nbsp;•&nbsp; Fire: Space &nbsp;•&nbsp; Pause: P</div>
+            <div class="sub" style="margin-top:.3rem;">Press Space / Tap to begin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+  // ===== Bean Galaga — Phase 1 (faithful clone vibe) =====
+  // Assets required in /img: player_ship.png, enemy_fighter.png (optional: enemy_interceptor.png)
+  // Everything else (projectiles, explosions, stars, shields) is procedural.
+
+  // ---------- Canvas ----------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // ---------- HUD ----------
+  const scoreEl = document.getElementById('score');
+  const hiEl = document.getElementById('hi');
+  const centerEl = document.getElementById('center');
+  const livesEl = document.getElementById('lives');
+  const fmt = n => n.toString().padStart(5,'0');
+
+  // ---------- State ----------
+  const STATE = {
+    title:true, playing:false, paused:false, over:false, waveClear:false,
+    last:0, t:0,
+    score:0, hi: Number(sessionStorage.getItem('galaga_hi') || 0),
+    wave:1
+  };
+
+  // ---------- Assets (ships only, with fallback) ----------
+  const IMG = {
+    player: new Image(),
+    enemy1: new Image(),
+    enemy2: new Image(),
+  };
+  IMG.player.src = 'img/player_ship.png';
+  IMG.enemy1.src = 'img/enemy_fighter.png';
+  IMG.enemy2.src = 'img/enemy_interceptor.png'; // optional
+
+  // Track if images failed to load, fallback to vector
+  const missing = { player:false, enemy1:false, enemy2:false };
+  IMG.player.addEventListener('error', ()=> missing.player = true);
+  IMG.enemy1.addEventListener('error', ()=> missing.enemy1 = true);
+  IMG.enemy2.addEventListener('error', ()=> missing.enemy2 = true);
+
+  // ---------- Input ----------
+  const keys = new Set();
+  window.addEventListener('keydown', (e)=>{
+    if (['ArrowLeft','ArrowRight','Space','KeyP','Escape'].includes(e.code)) e.preventDefault();
+    keys.add(e.code);
+    if (e.code === 'Space'){
+      if (STATE.title || STATE.over || STATE.waveClear){ startGame(); }
+    }
+    if (e.code === 'KeyP' || e.code === 'Escape'){
+      if (STATE.playing){ togglePause(); }
+    }
+  });
+  window.addEventListener('keyup', (e)=> keys.delete(e.code));
+  canvas.addEventListener('click', ()=>{ if (STATE.title || STATE.over || STATE.waveClear) startGame(); });
+  canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); if (STATE.title || STATE.over || STATE.waveClear) startGame(); }, {passive:false});
+
+  // ---------- Utilities ----------
+  const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
+  const nowMs = ()=> performance.now();
+  function aabb(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+
+  // ---------- Starfield ----------
+  const stars = [];
+  function initStars(){
+    stars.length = 0;
+    const layers = [
+      {n:70, speed:0.25, size:1, alpha:0.6},
+      {n:60, speed:0.5, size:1.5, alpha:0.8},
+      {n:40, speed:0.9, size:2, alpha:1.0},
+    ];
+    for (const L of layers){
+      for (let i=0;i<L.n;i++){
+        stars.push({ x: Math.random()*W, y: Math.random()*H, z:L.speed, s:L.size, a:L.alpha });
+      }
+    }
+  }
+  function drawStars(dt){
+    ctx.save();
+    for (const st of stars){
+      st.y += st.z * dt * 0.06;
+      if (st.y > H) st.y = 0, st.x = Math.random()*W;
+      ctx.globalAlpha = st.a;
+      ctx.fillStyle = '#9fc4ff';
+      ctx.fillRect(st.x|0, st.y|0, st.s, st.s);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Player ----------
+  const PLAYER = {
+    x: W/2 - 24, y: H - 90, w: 48, h: 40,
+    speed: 6.0,
+    lives: 3,
+    invuln: 0,
+    fireCd: 0,
+    maxShots: 2, // Galaga allows multiple, set to 2
+  };
+  const playerHitbox = ()=>{
+    const w = PLAYER.w*0.7, h = PLAYER.h*0.6;
+    return { x: PLAYER.x + (PLAYER.w - w)/2, y: PLAYER.y + (PLAYER.h - h)/2, w, h };
+  };
+  function drawPlayer(){
+    if (PLAYER.invuln > 0 && Math.floor(STATE.t*20)%2===0){
+      // blink while invulnerable
+      ctx.globalAlpha = 0.5;
+    }
+    if (!missing.player && IMG.player.complete){
+      drawImage(IMG.player, PLAYER.x, PLAYER.y, PLAYER.w, PLAYER.h, 0);
+    } else {
+      // fallback: dumbbell-shaped ship
+      ctx.save();
+      ctx.translate(PLAYER.x, PLAYER.y);
+      ctx.fillStyle = '#cfd8ff';
+      ctx.fillRect(8,10,PLAYER.w-16,PLAYER.h-20);
+      ctx.beginPath(); ctx.arc(12, PLAYER.h/2, 10, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(PLAYER.w-12, PLAYER.h/2, 10, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    // shield ring if invuln
+    if (PLAYER.invuln > 0){
+      const p = 1 - Math.max(0, (PLAYER.invuln/2000));
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.25*Math.sin(STATE.t*8);
+      ctx.strokeStyle = '#66ccff';
+      ctx.lineWidth = 2 + 1.5*Math.sin(STATE.t*8);
+      ctx.beginPath();
+      ctx.arc(PLAYER.x + PLAYER.w/2, PLAYER.y + PLAYER.h/2, 34 + 2*Math.sin(STATE.t*6), 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- Projectiles (player lightning & enemy ovals) ----------
+  const bolts = [];
+  const enemyBullets = [];
+  function shoot(){
+    if (PLAYER.fireCd > 0) return;
+    // cap on-screen bolts
+    let active = 0;
+    for (const b of bolts) if (b.active) active++;
+    if (active >= PLAYER.maxShots) return;
+    // spawn bolt
+    const x = PLAYER.x + PLAYER.w/2 - 2;
+    const y = PLAYER.y - 8;
+    bolts.push(newBolt(x, y));
+    PLAYER.fireCd = 200; // ms
+  }
+  function newBolt(x,y){
+    return {
+      active:true, x, y, w:6, h:16, vy:-12,
+      // create a procedural zig-zag path seed
+      seed: Math.random()*1000
+    };
+  }
+  function updateBolts(dts){
+    for (const b of bolts){
+      if (!b.active) continue;
+      b.y += b.vy * dts;
+      if (b.y + b.h < -10){ b.active = false; continue; }
+    }
+  }
+  function drawBolts(){
+    for (const b of bolts){
+      if (!b.active) continue;
+      drawLightningBolt(b.x, b.y, b.h);
+    }
+  }
+  function drawLightningBolt(x, y, len){
+    // Render a short vertical jag with segments
+    const segs = 5;
+    let px = x + 3, py = y + len;
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    for (let pass=0; pass<2; pass++){
+      ctx.beginPath();
+      ctx.strokeStyle = pass===0 ? '#ffffff' : '#59b7ff';
+      let yy = y + len;
+      ctx.moveTo(px, py);
+      for (let i=0;i<segs;i++){
+        const jitter = (Math.sin((STATE.t*12)+(i*1.7)) * 6);
+        yy -= len/segs;
+        const nx = x + 3 + jitter*(i%2===0?1:-1);
+        ctx.lineTo(nx, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function spawnEnemyBullet(x,y){
+    enemyBullets.push({ active:true, x:x-3, y:y, w:8, h:12, vy:3 + Math.random()*1.5 });
+  }
+  function updateEnemyBullets(dts){
+    for (const e of enemyBullets){
+      if (!e.active) continue;
+      e.y += e.vy * dts;
+      if (e.y > H+20) e.active = false;
+    }
+  }
+  function drawEnemyBullets(){
+    ctx.save();
+    for (const e of enemyBullets){
+      if (!e.active) continue;
+      ctx.fillStyle = '#8a5a2b'; // acorn-ish
+      ctx.beginPath();
+      ctx.ellipse(e.x+e.w/2, e.y+e.h/2, e.w/2, e.h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#c79b62';
+      ctx.fillRect(e.x+2, e.y+2, 2, 3);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Explosions (particles) ----------
+  const parts = [];
+  function explode(x,y, color='#9fd4ff', n=12, speed=2.5){
+    for (let i=0;i<n;i++){
+      const ang = Math.random()*Math.PI*2;
+      const v = speed*(0.5+Math.random());
+      parts.push({
+        x, y,
+        vx: Math.cos(ang)*v,
+        vy: Math.sin(ang)*v,
+        life: 400 + Math.random()*250,
+        age: 0,
+        color
+      });
+    }
+  }
+  function updateParticles(dt){
+    for (let i=parts.length-1; i>=0; i--){
+      const p = parts[i];
+      p.age += dt;
+      if (p.age >= p.life){ parts.splice(i,1); continue; }
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.02; // slight gravity
+    }
+  }
+  function drawParticles(){
+    for (const p of parts){
+      const a = 1 - (p.age/p.life);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x|0, p.y|0, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- Enemies & Waves ----------
+  const GRID = { rows:5, cols:11, spacingX:60, spacingY:44, offsetX: W/2 - (11-1)*60/2, offsetY: 120 };
+  const enemies = [];
+  let diveTimer = 0;
+  let wiggleT = 0;
+
+  function spawnWave(){
+    enemies.length = 0;
+    const total = GRID.rows * GRID.cols;
+    let i = 0;
+    for (let r=0;r<GRID.rows;r++){
+      for (let c=0;c<GRID.cols;c++,i++){
+        const gx = GRID.offsetX + c*GRID.spacingX;
+        const gy = GRID.offsetY + r*GRID.spacingY;
+        // start off screen with a curved fly-in
+        const startX = (i%2===0) ? -80 - (r*15) : W + 80 + (r*15);
+        const startY = -60 - (c*8);
+        enemies.push(makeEnemy(gx, gy, startX, startY, r, c));
+      }
+    }
+    diveTimer = 1600;
+    wiggleT = 0;
+  }
+
+  function makeEnemy(gx, gy, sx, sy, row, col){
+    return {
+      type: (row<=1 && !missing.enemy2 && IMG.enemy2.complete) ? 2 : 1, // top rows as interceptor if available
+      state: 'enter', // enter -> form -> dive -> return
+      gx, gy,
+      x: sx, y: sy,
+      w: 40, h: 36,
+      row, col,
+      t: 0, // timer for motions
+      fireCd: 800 + Math.random()*600,
+      alive: true
+    };
+  }
+
+  function updateEnemies(dt, dts){
+    let anyAlive = false;
+    wiggleT += dts*0.04;
+    for (const e of enemies){
+      if (!e.alive) continue;
+      anyAlive = true;
+      e.t += dt;
+
+      if (e.state === 'enter'){
+        // Bezier-ish curve into formation
+        const T = Math.min(1, e.t/1200);
+        const midX = (e.x + e.gx)/2 + Math.sin((e.row+e.col)*0.5)*40;
+        const midY = (e.y + e.gy)/2 + 80;
+        // quadratic interpolation
+        const ix = (1-T)*(1-T)*e.x + 2*(1-T)*T*midX + T*T*e.gx;
+        const iy = (1-T)*(1-T)*e.y + 2*(1-T)*T*midY + T*T*e.gy;
+        e.x = ix; e.y = iy;
+        if (T>=1){ e.state='form'; e.t=0; }
+      }
+      else if (e.state === 'form'){
+        // Wiggle around grid position
+        const wobX = Math.sin(wiggleT + e.col*0.7) * 6;
+        const wobY = Math.cos(wiggleT*1.2 + e.row*0.8) * 4;
+        e.x = e.gx + wobX;
+        e.y = e.gy + wobY;
+
+        // count down to maybe fire (only while diving, but we can let a small chance here)
+        e.fireCd -= dt;
+
+      }
+      else if (e.state === 'dive'){
+        // Curve toward player, then off bottom, then re-enter from top to grid
+        const D = e.t/1; // e.t in ms
+        const prog = Math.min(1, e.t/1800);
+        const targetX = PLAYER.x + PLAYER.w/2 + Math.sin(STATE.t*3 + e.col)*60;
+        const baseY = e.gy;
+        // path
+        const px = e.gx + Math.sin(prog*Math.PI*2 + e.col)*120 + (targetX - e.gx)*prog*0.8;
+        const py = e.gy + Math.sin(prog*Math.PI)*140 + prog*260;
+        e.x = px; e.y = py;
+
+        // Shooting while diving
+        e.fireCd -= dt;
+        if (e.fireCd <= 0){
+          spawnEnemyBullet(e.x + e.w/2, e.y + e.h/2);
+          e.fireCd = (900 - (STATE.wave-1)*60) * (0.7 + Math.random()*0.6);
+          if (e.fireCd < 320) e.fireCd = 320;
+        }
+
+        if (e.y > H + 30){
+          // return to formation from top
+          e.state = 'return'; e.t = 0;
+          e.x = Math.random()*W; e.y = -50;
+        }
+      }
+      else if (e.state === 'return'){
+        const T = Math.min(1, e.t/1000);
+        e.x = e.x*(1-T) + e.gx*T;
+        e.y = e.y*(1-T) + e.gy*T;
+        if (T>=1){ e.state='form'; e.t=0; }
+      }
+    }
+
+    // Launch divers over time
+    if (STATE.playing && !STATE.paused){
+      diveTimer -= dt;
+      if (diveTimer <= 0){
+        launchDivers();
+        // next launch sooner on higher waves
+        const base = 1800 - (STATE.wave-1)*120;
+        diveTimer = clamp(base + (Math.random()*400 - 200), 900, 2000);
+      }
+    }
+
+    if (!anyAlive && STATE.playing){
+      // wave cleared
+      STATE.playing = false;
+      STATE.waveClear = true;
+      centerEl.style.display = 'flex';
+      centerEl.querySelector('.card').innerHTML = `
+        <div style="font-weight:700; margin-bottom:.25rem;">Wave ${STATE.wave} Cleared</div>
+        <div class="sub">Press Space / Tap for next wave</div>`;
+      STATE.wave++;
+    }
+  }
+
+  function launchDivers(){
+    // pick 2–4 enemies in 'form' to dive
+    const candidates = enemies.filter(e => e.alive && e.state==='form');
+    if (candidates.length === 0) return;
+    const n = Math.min(4, Math.max(2, Math.floor(Math.random()*4)+1));
+    for (let i=0;i<n && candidates.length>0;i++){
+      const idx = Math.floor(Math.random()*candidates.length);
+      const e = candidates.splice(idx,1)[0];
+      e.state = 'dive';
+      e.t = 0;
+      e.fireCd = 200 + Math.random()*300;
+    }
+  }
+
+  function drawEnemies(){
+    for (const e of enemies){
+      if (!e.alive) continue;
+      const img = (e.type===2 && !missing.enemy2 && IMG.enemy2.complete) ? IMG.enemy2 : (!missing.enemy1 && IMG.enemy1.complete ? IMG.enemy1 : null);
+      if (img){
+        drawImage(img, e.x- e.w/2, e.y- e.h/2, e.w, e.h, 0);
+      } else {
+        // fallback render
+        ctx.save();
+        ctx.translate(e.x- e.w/2, e.y- e.h/2);
+        ctx.fillStyle = e.type===2 ? '#ffcf66' : '#ff9f66';
+        ctx.fillRect(4,6,e.w-8,e.h-12);
+        ctx.fillStyle = '#662b00';
+        ctx.fillRect(8,10,e.w-16,6);
+        ctx.restore();
+      }
+    }
+  }
+
+  // Enemy hitboxes are around sprite center
+  function enemyBox(e){
+    return { x:e.x - e.w*0.45, y:e.y - e.h*0.45, w:e.w*0.9, h:e.h*0.9 };
+  }
+
+  // ---------- Drawing Helper ----------
+  function drawImage(img, x, y, w, h, rot){
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x + w/2, y + h/2);
+    if (rot) ctx.rotate(rot);
+    ctx.drawImage(img, 0, 0, img.width, img.height, -w/2, -h/2, w, h);
+    ctx.restore();
+  }
+
+  // ---------- Collisions ----------
+  function handleCollisions(dt){
+    // player bolts vs enemies
+    for (const b of bolts){
+      if (!b.active) continue;
+      const bb = { x:b.x, y:b.y, w:b.w, h:b.h };
+      for (const e of enemies){
+        if (!e.alive) continue;
+        const eb = enemyBox(e);
+        if (aabb(bb, eb)){
+          b.active = false;
+          e.alive = false;
+          explode(e.x, e.y, '#9fd4ff', 14, 3);
+          STATE.score += 50;
+          break;
+        }
+      }
+    }
+    // enemy bullets vs player
+    if (PLAYER.invuln <= 0){
+      const pb = playerHitbox();
+      for (const eb of enemyBullets){
+        if (!eb.active) continue;
+        if (aabb(pb, eb)){
+          eb.active = false;
+          killPlayer();
+          break;
+        }
+      }
+      // enemy bodies vs player
+      for (const e of enemies){
+        if (!e.alive) continue;
+        if (aabb(pb, enemyBox(e))){
+          e.alive = false;
+          explode(e.x, e.y, '#ffc8a0', 16, 3);
+          killPlayer();
+          break;
+        }
+      }
+    }
+  }
+
+  function killPlayer(){
+    // explosion + life down + invuln + reset bolts
+    explode(PLAYER.x + PLAYER.w/2, PLAYER.y + PLAYER.h/2, '#ffffff', 28, 3.5);
+    screenFlash(220);
+    PLAYER.lives--;
+    bolts.forEach(b => b.active=false);
+    if (PLAYER.lives < 0){
+      // game over
+      gameOver();
+      return;
+    }
+    // respawn invuln
+    PLAYER.invuln = 2000;
+    // move slightly up
+    PLAYER.y = H - 90;
+  }
+
+  // ---------- Screen flash ----------
+  let flashTimer = 0;
+  function screenFlash(ms=160){ flashTimer = Math.max(flashTimer, ms); }
+  function drawFlash(dt){
+    if (flashTimer <= 0) return;
+    flashTimer -= dt;
+    const a = clamp(flashTimer/160, 0, 1) * 0.6;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#cfe9ff';
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+
+  // ---------- Lives HUD ----------
+  function renderLives(){
+    livesEl.innerHTML = '';
+    const count = Math.max(0, PLAYER.lives);
+    for (let i=0;i<count;i++){
+      const el = document.createElement('div');
+      el.style.width = '18px'; el.style.height = '14px';
+      el.style.border = '1px solid #9fc4ff'; el.style.borderRadius='2px';
+      el.style.boxShadow = '0 0 6px rgba(159,196,255,.6) inset';
+      livesEl.appendChild(el);
+    }
+  }
+
+  // ---------- Flow ----------
+  function startGame(){
+    STATE.title = false; STATE.over=false; STATE.waveClear=false; STATE.playing=true; STATE.paused=false;
+    STATE.score = 0;
+    PLAYER.lives = 3;
+    PLAYER.invuln = 2000;
+    PLAYER.x = W/2 - PLAYER.w/2; PLAYER.y = H - 90;
+    enemyBullets.length = 0; bolts.length = 0; parts.length = 0;
+    STATE.last = nowMs(); STATE.t = 0;
+    STATE.wave = 1;
+    centerEl.style.display = 'none';
+    spawnWave();
+    renderLives();
+    loop(STATE.last);
+  }
+
+  function nextWave(){
+    STATE.waveClear = false; STATE.playing=true;
+    centerEl.style.display = 'none';
+    enemyBullets.length = 0; bolts.length = 0; parts.length = 0;
+    spawnWave();
+  }
+
+  function togglePause(){
+    STATE.paused = !STATE.paused;
+    centerEl.style.display = STATE.paused ? 'flex' : 'none';
+    if (STATE.paused){
+      centerEl.querySelector('.card').innerHTML = '<div style="font-weight:700; margin-bottom:.25rem;">Paused</div><div class="sub">Press P/Esc to resume</div>';
+    }
+  }
+
+  function gameOver(){
+    STATE.playing = false; STATE.over = true;
+    if (STATE.score > STATE.hi){ STATE.hi = STATE.score; sessionStorage.setItem('galaga_hi', String(STATE.hi)); }
+    centerEl.style.display = 'flex';
+    centerEl.querySelector('.card').innerHTML = `
+      <div style="font-weight:700; margin-bottom:.25rem;">Game Over</div>
+      <div>Score: ${fmt(Math.floor(STATE.score))}</div>
+      <div class="sub" style="margin-top:.25rem;">Press Space / Tap to retry</div>`;
+  }
+
+  // ---------- Main Loop ----------
+  initStars();
+  function loop(ts){
+    if (!STATE.playing && !STATE.waveClear) return;
+    const dt = Math.min(32, ts - STATE.last);
+    const dts = dt / (1000/60);
+    STATE.t += dts * 0.016; // time scalar for effects
+    STATE.last = ts;
+
+    if (!STATE.paused){
+      // Update
+      // input
+      if (keys.has('ArrowLeft') || keys.has('KeyA')) PLAYER.x -= PLAYER.speed * dts;
+      if (keys.has('ArrowRight') || keys.has('KeyD')) PLAYER.x += PLAYER.speed * dts;
+      PLAYER.x = clamp(PLAYER.x, 8, W - PLAYER.w - 8);
+
+      if (keys.has('Space')) shoot();
+      if (PLAYER.fireCd > 0) PLAYER.fireCd -= dt;
+      if (PLAYER.invuln > 0) PLAYER.invuln -= dt;
+
+      updateBolts(dts);
+      updateEnemyBullets(dts);
+      updateEnemies(dt, dts);
+      updateParticles(dt);
+      handleCollisions(dt);
+
+      // Score / HUD
+      scoreEl.textContent = fmt(Math.floor(STATE.score));
+      hiEl.textContent = 'HI ' + fmt(Math.floor(STATE.hi));
+    }
+
+    // Draw
+    ctx.clearRect(0,0,W,H);
+    drawStars(dt);
+    drawEnemies();
+    drawEnemyBullets();
+    drawBolts();
+    drawPlayer();
+    drawParticles();
+    drawFlash(dt);
+
+    requestAnimationFrame(loop);
+  }
+
+  // Inject navbar (desktop)
+  fetch('navbar.html').then(r=>r.text()).then(html=>{
+    const nav=document.createElement('div');
+    nav.innerHTML=html;
+    document.body.insertBefore(nav, document.body.firstChild);
+  });
+  </script>
+</body>
+</html>
