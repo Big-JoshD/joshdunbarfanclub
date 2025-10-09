@@ -51,6 +51,20 @@
 
   <script>
   // ===== Bean Galaga — Phase 3: Bonus Stage + Tractor Beam + Dual Bean =====
+let DEBUG = { on:false };
+addEventListener('keydown', (e)=>{ if (e.code==='KeyV'){ DEBUG.on = !DEBUG.on; }});
+function drawDebug(){
+  if (!DEBUG.on) return;
+  const alive = enemies.filter(e=>e.alive).length;
+  const entering = (typeof entryScript!=='undefined') ? entryScript.filter(es=>es && !es.done).length : 0;
+  ctx.save(); ctx.globalAlpha=0.9; ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(10,10,320,100);
+  ctx.fillStyle='#0f0'; ctx.font='16px monospace';
+  ctx.fillText(`mode=${STATE.mode} wave=${STATE.wave} playing=${STATE.playing}`, 20, 34);
+  ctx.fillText(`enemies(alive)=${alive} entryQ=${entering} formationFilled=${formationFilled}`, 20, 56);
+  ctx.fillText(`dual=${PLAYER.dual} lives=${PLAYER.lives} invuln=${Math.max(0,Math.floor(PLAYER.invuln))}`, 20, 78);
+  ctx.restore();
+}
+
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -368,7 +382,9 @@
     }
   }
 
-  function updateEnemies(dt, dts){
+  let _spawnGuardTimer = 0;
+function updateEnemies(dt, dts){
+  _spawnGuardTimer += dt;
     wiggleT += dts*0.04;
     if (STATE.mode==='bonus'){ updateBonus(dt); return; }
 
@@ -403,6 +419,7 @@
       }
     }
 
+    if (_spawnGuardTimer>2000 && STATE.mode==='normal' && enemies.filter(e=>e.alive).length===0 && entryScript.length===0){ spawnWave(); _spawnGuardTimer=0; }
     if (formationFilled && STATE.playing && !STATE.paused){
       diveTimer -= dt;
       if (diveTimer <= 0){
@@ -599,7 +616,7 @@
     }
 
     ctx.clearRect(0,0,W,H);
-    drawStars(dt); drawEnemies(); drawEnemyBullets(); drawBolts(); drawPlayer(); drawParticles(); drawFlash(dt);
+    drawStars(dt); drawEnemies(); drawEnemyBullets(); drawBolts(); drawPlayer(); drawParticles(); drawFlash(dt); drawDebug();
     requestAnimationFrame(loop);
   }
 
@@ -610,6 +627,7 @@
   // Inject navbar
   fetch('navbar.html').then(r=>r.text()).then(html=>{ const nav=document.createElement('div'); nav.innerHTML=html; document.body.insertBefore(nav, document.body.firstChild); });
 
-  </script>
+  window.addEventListener('error', (e)=>{ try{ console.error('BeanGalaga runtime error:', e.error||e.message);}catch(_){} });
+</script>
 </body>
 </html>
