@@ -250,20 +250,52 @@ function drawDebug(){
   }
 
   function updateEntry(dt){
-    let anyWaiting=false, anyEntering=false;
-    for (const es of entryScript){
-      if (es.id == null || es.id < 0 || es.id >= enemies.length) { es.done=true; continue; }
-      const e=enemies[es.id]; if (!e || !e.alive) { es.done=true; continue; }
-      if (es.done) continue;
-      if (!es.started){ es.delay -= dt; if (es.delay<=0){ es.started=true; e.state='enter'; e.t=0; anyEntering=true; } else { anyWaiting=true; continue; } }
-      if (es.started && !es.done){
-        es.t += dt; const t=Math.min(1, es.t/es.dur); const p=es.path(t); e.x=p.x; e.y=p.y;
-        if (t>=1){ es.done=true; e.state='form'; e.t=0; }
-        anyEntering=true;
+  let anyWaiting=false, anyEntering=false;
+
+  for (const es of entryScript){
+    if (es.id == null || es.id < 0 || es.id >= enemies.length) { es.done=true; continue; }
+    const e = enemies[es.id];
+    if (!e || !e.alive) { es.done=true; continue; }
+    if (es.done) continue;
+
+    if (!es.started){
+      es.delay -= dt;
+      if (es.delay <= 0){
+        es.started = true;
+        e.state = 'enter';
+        e.t = 0;
+
+        // ✅ ensure visible on the very first frame of entry
+        const p0 = es.path(0.0001);
+        e.x = p0.x; e.y = p0.y;
+        if (!isFinite(e.x) || !isFinite(e.y)) { e.x = e.gx; e.y = e.gy; }
+
+        anyEntering = true;
+      } else {
+        anyWaiting = true;
+        continue;
       }
     }
-    if (!anyWaiting && !anyEntering) formationFilled=true;
+
+    if (es.started && !es.done){
+      es.t += dt;
+      const t = Math.min(1, es.t / es.dur);
+      const p = es.path(t);
+      e.x = p.x; e.y = p.y;
+
+      if (t >= 1){
+        es.done = true;
+        e.state = 'form';
+        e.t = 0;
+        // snap to grid in case of tiny bezier drift
+        e.x = e.gx; e.y = e.gy;
+      }
+      anyEntering = true;
+    }
   }
+
+  if (!anyWaiting && !anyEntering) formationFilled = true;
+}
 
   // Tractor beam
   function maybeStartTractor(e, dt){
@@ -470,27 +502,38 @@ function updateEnemies(dt, dts){
 
   // Drawing
   function drawEnemies(){
-    for (const e of enemies){
-      if (!e.alive || e.state==='waiting') continue;
-      // Tractor beam under boss
-      if (e.type===3 && e.tractor.on && e.state==='form') drawTractor(e);
-      let img=null;
-      if (e.type===3 && !missing.boss && IMG.boss.complete) img=IMG.boss;
-      else if (e.type===2 && !missing.butter && IMG.butter.complete) img=IMG.butter;
-      else if (!missing.bee && IMG.bee.complete) img=IMG.bee;
-      if (img) drawImage(img, e.x- e.w/2, e.y- e.h/2, e.w, e.h);
-      else { ctx.save(); ctx.translate(e.x- e.w/2, e.y- e.h/2); ctx.fillStyle = e.type===3 ? '#ffd166' : e.type===2 ? '#ff9f66' : '#66d1ff'; ctx.fillRect(4,6,e.w-8,e.h-12); ctx.restore(); }
-      // Draw captured ship attached under boss if any
-      if (e.type===3 && e.capturedShip){
-        const cx = e.x, cy = e.y + e.h/2 + 16;
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        if (!missing.player && IMG.player.complete) drawImage(IMG.player, cx-24, cy-12, 48, 32);
-        else { ctx.fillStyle='#cfd8ff'; ctx.fillRect(cx-20, cy-10, 40, 20); }
-        ctx.restore();
-      }
+  for (const e of enemies){
+    if (!e.alive || e.state==='waiting') continue;
+
+    // bright crosshair at enemy center so we can always see *something*
+    ctx.save();
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(e.x-6, e.y); ctx.lineTo(e.x+6, e.y);
+    ctx.moveTo(e.x, e.y-6); ctx.lineTo(e.x, e.y+6);
+    ctx.stroke();
+    ctx.restore();
+
+    const x = e.x - e.w/2, y = e.y - e.h/2;
+    // solid debug rectangles (bypass images)
+    ctx.save();
+    ctx.fillStyle = e.type===3 ? '#ffd166' : e.type===2 ? '#ff9f66' : '#66d1ff';
+    ctx.fillRect(x, y, e.w, e.h);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, e.w, e.h);
+    ctx.restore();
+
+    // show tractor & captured ship visuals if present
+    if (e.type===3 && e.tractor && e.tractor.on && e.state==='form'){ drawTractor(e); }
+    if (e.type===3 && e.capturedShip){
+      ctx.save(); ctx.fillStyle='#cfd8ff';
+      ctx.fillRect(e.x-20, e.y + e.h/2 + 8, 40, 16);
+      ctx.restore();
     }
   }
+}
+
   function enemyBox(e){ return { x:e.x - e.w*0.45, y:e.y - e.h*0.45, w:e.w*0.9, h:e.h*0.9 }; }
   function drawImage(img,x,y,w,h){
   ctx.save();
