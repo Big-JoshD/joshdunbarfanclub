@@ -238,7 +238,8 @@
   function updateEntry(dt){
     let anyWaiting=false, anyEntering=false;
     for (const es of entryScript){
-      const e=enemies[es.id]; if (!e || !e.alive) continue;
+      if (es.id == null || es.id < 0 || es.id >= enemies.length) { es.done=true; continue; }
+      const e=enemies[es.id]; if (!e || !e.alive) { es.done=true; continue; }
       if (es.done) continue;
       if (!es.started){ es.delay -= dt; if (es.delay<=0){ es.started=true; e.state='enter'; e.t=0; anyEntering=true; } else { anyWaiting=true; continue; } }
       if (es.started && !es.done){
@@ -321,7 +322,7 @@
     STATE.bonus.total = enemies.length;
     centerEl.style.display='flex';
     centerEl.querySelector('.card').innerHTML = `<div style="font-weight:700; margin-bottom:.25rem;">BONUS STAGE!</div><div class="sub">Shoot as many as you can. No enemy fire.</div>`;
-    setTimeout(()=>{ centerEl.style.display='none'; }, 1000);
+    let _hideCount=0; const _hideBonus=()=>{ _hideCount++; if (_hideCount>6) { centerEl.style.display='none'; } else { requestAnimationFrame(_hideBonus); } }; _hideBonus();
   }
   function updateBonus(dt){
     let anyAlive=false;
@@ -474,7 +475,19 @@
     }
   }
   function enemyBox(e){ return { x:e.x - e.w*0.45, y:e.y - e.h*0.45, w:e.w*0.9, h:e.h*0.9 }; }
-  function drawImage(img,x,y,w,h){ ctx.save(); ctx.imageSmoothingEnabled=false; ctx.translate(x+w/2,y+h/2); ctx.drawImage(img,0,0,img.width,img.height,-w/2,-h/2,w,h); ctx.restore(); }
+  function drawImage(img,x,y,w,h){
+  ctx.save();
+  ctx.imageSmoothingEnabled=false;
+  ctx.translate(x+w/2,y+h/2);
+  try{
+    if (!img || !img.complete || img.naturalWidth===0 || !isFinite(w) || !isFinite(h)) throw new Error('img not ready');
+    ctx.drawImage(img,0,0,img.width,img.height,-w/2,-h/2,w,h);
+  }catch(e){
+    // fallback box
+    ctx.fillStyle='#888'; ctx.fillRect(-w/2,-h/2,w,h);
+  }
+  ctx.restore();
+}
 
   // Collisions & scoring
   function handleCollisions(){
@@ -541,7 +554,7 @@
     STATE.title=false; STATE.over=false; STATE.waveClear=false; STATE.playing=true; STATE.paused=false;
     STATE.score=0; PLAYER.lives=3; PLAYER.invuln=2000; PLAYER.x=W/2-PLAYER.w/2; PLAYER.y=H-90; PLAYER.dual=false; PLAYER.maxShots=2;
     enemyBullets.length=0; bolts.length=0; parts.length=0; STATE.last=performance.now(); STATE.t=0; STATE.wave=1;
-    centerEl.style.display='none'; spawnWave(); renderLives(); loop(STATE.last);
+    centerEl.style.display='none'; centerEl.innerHTML = '<div class="card"></div>'; spawnWave(); renderLives(); loop(STATE.last);
   }
   function nextWave(){
     STATE.waveClear=false; STATE.playing=true; centerEl.style.display='none';
@@ -567,6 +580,7 @@
     STATE.t += dts * 0.016; STATE.last = ts;
 
     if (!STATE.paused){
+      try {
       if (keys.has('ArrowLeft') || keys.has('KeyA')) PLAYER.x -= PLAYER.speed * dts;
       if (keys.has('ArrowRight') || keys.has('KeyD')) PLAYER.x += PLAYER.speed * dts;
       PLAYER.x = Math.max(8, Math.min(W-PLAYER.w-8, PLAYER.x));
@@ -578,6 +592,10 @@
 
       scoreEl.textContent = fmt(Math.floor(STATE.score));
       hiEl.textContent = 'HI ' + fmt(Math.floor(STATE.hi));
+      } catch (err) {
+        // draw minimal frame if something goes wrong
+        console && console.error && console.error(err);
+      }
     }
 
     ctx.clearRect(0,0,W,H);
